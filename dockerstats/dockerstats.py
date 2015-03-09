@@ -1,56 +1,11 @@
-import json,yaml,logging,thread
+import json,yaml,logging
 from datetime import datetime
-from docker import Client
 from redis import StrictRedis
+from .collector import StatCollector
+from .container import Container
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('dockerstats')
-
-cpu_tick = 100
-
-class Container(object):
-    """
-    Container object holds a collection of stats for a specific container_id,
-    rolling up the data at regular intervals.
-    params:
-     - container_id(str): Docker container id
-    methods:
-     - append_stat: Appends a new stat, recalculating averages
-    """
-    def __init__(self,container_id):
-        self.id = container_id
-        self.name = ""
-        self.stats_read = 0
-
-    def append_stat(self,stat):
-        self.stats_read += 1
-        if not self.name:
-            self.name = stat.container_name
-        #cpu
-        #convert to str and back to float
-        cpu = str(stat['cpu_stats']['system_cpu_usage']).split('e')[0]
-        result['cpu'] = '%.2f' % round(float(cpu))
-        #memory
-        self.memory_usage = self._format_byte(stat['memory_stats']['usage'])
-        #network
-        netin = stat['network']['rx_bytes']
-        netout = stat['network']['tx_bytes']
-        self.net_in = self._format_bytes(netin)
-        self.net_out = self._format_bytes(netout)
-        
-        return result
-
-    def _format_bytes(self,b):
-        if b < 1000:
-            return '%i' % b + 'b'
-        elif 1000 <= b < 1000000:
-            return '%.1f' % float(b/1000) + 'kb'
-        elif 1000000 <= b < 1000000000:
-            return '%.1f' % float(b/1000000) + 'mb'
-        elif 1000000000 <= b < 1000000000000:
-            return '%.1f' % float(b/1000000000) + 'gb'
-        elif 1000000000000 <= b:
-            return '%.1f' % float(b/1000000000000) + 'tb'
 
 class Stat(object):
     """
@@ -76,54 +31,14 @@ class Stat(object):
         hour,minute,second = t.split(':')
         second,microsecond = second.split('.')
 
-        timestamp = datetime(int(year),
-                             int(month),
-                             int(day),
-                             int(hour),
-                             int(minute),
-                             int(second),
-                             int(microsecond[0:6]))
-        return (timestamp,tz)
-
-
-class StatCollector(object):
-    """
-    Collects stats from all containers on a single Docker host, appending
-    container name and id fields and publishing to redis
-    params:
-     - host(str): full base_url of a Docker host to connect to.
-                  (e.g. 'tcp://127.0.0.1:4243')
-     - redis(obj): redis client connection object
-    """
-    def __init__(self,host,redis):
-        self.host    = host
-        self.client  = Client(base_url=host)
-        self.redis   = redis
-        self.threads = []
-        self.reload()
-
-    def start(self,container_id,container_name):
-        log.info('stat collector started for container %s' % container_id)
-        stats = self.client.stats(container_id)
-        for stat in stats:
-            #append additional information to the returned stat
-            s = json.loads(stat)
-            s['container_name'] = container_id
-            s['container_id'] = container_id
-            s['host'] = self.host
-            self.redis.publish("stats",json.dumps(s))
-
-    def reload(self):
-        for t in self.threads:
-            t.exit()
-        self.threads = []
-        for cid,cname in self._get_containers().items():
-            t = thread.start_new_thread(self.start,(cid,cname))
-            self.threads.append(t)
-
-    def _get_containers(self):
-        containers = self.client.containers()
-        return { c['Id'] : c['Names'][0].strip('/') for c in containers }
+        ts = datetime(int(year),
+                      int(month),
+                      int(day),
+                      int(hour),
+                      int(minute),
+                      int(second),
+                      int(microsecond[0:6]))
+        return (ts,tz)
 
 class DockerStats(object):
     def __init__(self,config_file='config.yaml'):
