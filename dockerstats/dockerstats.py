@@ -1,8 +1,8 @@
 import json,yaml,logging
 from datetime import datetime
 from redis import StrictRedis
-from .collector import StatCollector
-from .container import Container
+from collector import StatCollector
+from container  import Container
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('dockerstats')
@@ -55,7 +55,8 @@ class DockerStats(object):
         while True:
             stat = Stat(self.sub.get_message()['data'])
             if stat.container_name not in self.containers:
-                self.containers['stat.container_name'] = Container(stat.container_name)
+                self.containers['stat.container_id'] = Container(stat.container_name)
+            self.containers['stat.container_id'].append_stat(stat)
 
     def start_collectors(self):
         self.collectors = []
