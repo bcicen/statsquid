@@ -4,7 +4,7 @@ from redis import StrictRedis
 from collector import StatCollector
 from container  import Container
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('dockerstats')
 
 class Stat(object):
@@ -17,7 +17,6 @@ class Stat(object):
         self.timezone,self.timestamp = self._readtime(self.statdict['read'])
         self.container_name = self.statdict['container_name'].split('/')[-1]
         self.container_id = self.statdict['container_id'].split('/')[-1]
-
 
     def _readtime(self,timestamp):
         d,t = timestamp.split('T')
@@ -47,18 +46,26 @@ class DockerStats(object):
         r_host = self.config['redis'].split(':')[0]
         r_port = self.config['redis'].split(':')[1]
         redis = StrictRedis(host=r_host,port=r_port,db=0)
-        self.sub = redis.pubsub()
+        self.sub = redis.pubsub(ignore_subscribe_messages=True)
         self.sub.subscribe("stats")
         self.containers = {}
+        self.start_collectors(redis)
+        self.run_forever()
 
     def run_forever(self):
         while True:
-            stat = Stat(self.sub.get_message()['data'])
-            if stat.container_name not in self.containers:
-                self.containers['stat.container_id'] = Container(stat.container_name)
-            self.containers['stat.container_id'].append_stat(stat)
+            msg = self.sub.get_message()
+            if msg:
+                self._process_msg(msg['data'])
 
-    def start_collectors(self):
+    def _process_msg(self,msg):
+        stat = Stat(msg)
+        cid = stat.container_id
+        if cid not in self.containers:
+            self.containers[cid] = Container(cid)
+        self.containers[cid].append_stat(stat)
+
+    def start_collectors(self,redis):
         self.collectors = []
         for host in self.config['hosts']:
             self.collectors.append(StatCollector(host,redis))
