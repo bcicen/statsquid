@@ -1,3 +1,6 @@
-__version__ == 0.0.2
+__version__ = '0.0.2'
 
-from . import DockerStats
+import logging
+from dockerstats import DockerStats
+
+logging.basicConfig(level=logging.INFO)
