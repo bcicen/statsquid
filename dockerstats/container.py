@@ -1,6 +1,5 @@
 import logging
 
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('dockerstats')
 
 cpu_tick = 100
@@ -30,7 +29,7 @@ class Container(object):
         self.cpu = float(stat.statdict['cpu_stats']['system_cpu_usage'])
 
         #memory
-        self.memory_usage = self._format_byte(stat.statdict['memory_stats']['usage'])
+        self.memory_usage = self._format_bytes(stat.statdict['memory_stats']['usage'])
 
         #network
         netin = stat.statdict['network']['rx_bytes']

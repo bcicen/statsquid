@@ -1,7 +1,6 @@
 import json,logging,thread
 from docker import Client
 
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('dockerstats')
 
 class StatCollector(object):

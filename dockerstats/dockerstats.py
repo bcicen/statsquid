@@ -4,7 +4,6 @@ from redis import StrictRedis
 from collector import StatCollector
 from container  import Container
 
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('dockerstats')
 
 class Stat(object):
