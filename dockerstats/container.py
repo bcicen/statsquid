@@ -10,23 +10,39 @@ class Container(object):
     rolling up the data at regular intervals.
     params:
      - container_id(str): Docker container id
+     - redis(obj): Instance of a redis client object
     methods:
      - append_stat: Appends a new stat, recalculating averages
      params:
        - stat(obj): A dockerstats.stat object
     """
     #TODO: add rollup and averaging over time for metrics
-    def __init__(self,container_id):
-        self.id = container_id
-        self.name = ""
-        self.stats_read = 0
+    def __init__(self,container_id,redis):
+	self.redis = redis
+
+	#setup initial fields in redis 
+	self.id = container_id
+        self._set('id',container_id)
+        self._set('stats_read',0)
+
+	self.stats = []
+#	self._set('averages,'
+
+    def _get(self,attribute):
+	r = self.redis
+    	return r.hget(self.id, attribute)
+
+    def _set(self,attribute,value):
+	r = self.redis
+        r.hset(self.id, attribute, value) 
 
     def append_stat(self,stat):
-        if not self.name:
-            self.name = stat.container_name
+	self.stats.append(stat)
 
-        #cpu
-        self.cpu = float(stat.statdict['cpu_stats']['system_cpu_usage'])
+        if not self._get('name'):
+            self._set('name', stat.container_name)
+
+        self._set('cpu= float(stat.statdict['cpu_stats']['system_cpu_usage'])
 
         #memory
         self.memory_usage = self._format_bytes(stat.statdict['memory_stats']['usage'])

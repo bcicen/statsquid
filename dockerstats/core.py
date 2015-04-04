@@ -44,11 +44,11 @@ class DockerStats(object):
         
         r_host = self.config['redis'].split(':')[0]
         r_port = self.config['redis'].split(':')[1]
-        redis = StrictRedis(host=r_host,port=r_port,db=0)
-        self.sub = redis.pubsub(ignore_subscribe_messages=True)
+        self.redis = StrictRedis(host=r_host,port=r_port,db=0)
+        self.sub = self.redis.pubsub(ignore_subscribe_messages=True)
         self.sub.subscribe("stats")
         self.containers = {}
-        self.start_collectors(redis)
+        self.start_collectors()
         self.run_forever()
 
     def run_forever(self):
@@ -61,13 +61,15 @@ class DockerStats(object):
         stat = Stat(msg)
         cid = stat.container_id
         if cid not in self.containers:
-            self.containers[cid] = Container(cid)
+	    #create a new container object to track stats if we haven't
+	    #seen this container before
+            self.containers[cid] = Container(cid,self.redis)
         self.containers[cid].append_stat(stat)
 
-    def start_collectors(self,redis):
+    def start_collectors(self):
         self.collectors = []
         for host in self.config['hosts']:
-            self.collectors.append(StatCollector(host,redis))
+            self.collectors.append(StatCollector(host,self.redis))
             log.info('started collector for host %s' % host)
 
     def reload_collectors(self):
