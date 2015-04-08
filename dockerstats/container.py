@@ -1,4 +1,4 @@
-import logging
+import logging,json
 
 log = logging.getLogger('dockerstats')
 
@@ -18,42 +18,39 @@ class Container(object):
     """
     #TODO: add rollup and averaging over time for metrics
     def __init__(self,container_id,redis):
-	self.redis = redis
+        self.redis = redis
 
-	#setup initial fields in redis 
-	self.id = container_id
+        #setup initial fields in redis 
+        self.id = container_id
         self._set('id',container_id)
         self._set('stats_read',0)
 
-	self.stats = []
-#	self._set('averages,'
+        self.stats = []
 
     def _get(self,attribute):
-	r = self.redis
-    	return r.hget(self.id, attribute)
+        r = self.redis
+        return r.hget(self.id, attribute)
 
     def _set(self,attribute,value):
-	r = self.redis
+        r = self.redis
         r.hset(self.id, attribute, value) 
 
     def append_stat(self,stat):
-	self.stats.append(stat)
+        self.stats.append(stat)
 
         if not self._get('name'):
             self._set('name', stat.container_name)
 
-        self._set('cpu= float(stat.statdict['cpu_stats']['system_cpu_usage'])
+        self._set('cpu',float(stat.statdict['cpu_stats']['cpu_usage']['total_usage']))
+        self._set('mem',float(stat.statdict['memory_stats']['usage']))
+        self._set('net_tx_bytes',float(stat.statdict['network']['tx_bytes']))
+        self._set('net_rx_bytes',float(stat.statdict['network']['rx_bytes']))
+        #TODO: add io read/write metrics
+        #self._set('io_read_bytes',float(stat.statdict['io_service_bytes_recursive']['rx_bytes'])
+        #self._set('io_write_bytes',float(stat.statdict['io_service_bytes_recursive']['rx_bytes'])
 
-        #memory
-        self.memory_usage = self._format_bytes(stat.statdict['memory_stats']['usage'])
-
-        #network
-        netin = stat.statdict['network']['rx_bytes']
-        netout = stat.statdict['network']['tx_bytes']
-        self.net_in = self._format_bytes(netin)
-        self.net_out = self._format_bytes(netout)
-
-        self.stats_read += 1
+        #TODO: utilize redis increment
+        self._set('stats_read', int(self._get('stats_read')) + 1)
         
     def _format_bytes(self,b):
         if b < 1000:
