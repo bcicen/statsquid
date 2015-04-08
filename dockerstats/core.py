@@ -13,9 +13,13 @@ class Stat(object):
     def __init__(self,statjson):
         self.raw = statjson
         self.statdict = json.loads(self.raw)
-        self.timezone,self.timestamp = self._readtime(self.statdict['read'])
+        self.timestamp,self.timezone = self._readtime(self.statdict['read'])
         self.container_name = self.statdict['container_name'].split('/')[-1]
         self.container_id = self.statdict['container_id'].split('/')[-1]
+
+        self.container_cpu = self.statdict['cpu_stats']['cpu_usage']['total_usage']
+        self.system_cpu = self.statdict['cpu_stats']['system_cpu_usage']
+        self.cpu_count =  len(self.statdict['cpu_stats']['cpu_usage']['percpu_usage'])
 
     def _readtime(self,timestamp):
         d,t = timestamp.split('T')

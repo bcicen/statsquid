@@ -36,12 +36,12 @@ class Container(object):
         r.hset(self.id, attribute, value) 
 
     def append_stat(self,stat):
-        self.stats.append(stat)
-
         if not self._get('name'):
             self._set('name', stat.container_name)
 
-        self._set('cpu',float(stat.statdict['cpu_stats']['cpu_usage']['total_usage']))
+        if len(self.stats) > 0:
+            cpu_percent = self._calculate_cpu_percentage(stat,self.stats[-1])
+            self._set('cpu',round(cpu_percent,2))
         self._set('mem',float(stat.statdict['memory_stats']['usage']))
         self._set('net_tx_bytes',float(stat.statdict['network']['tx_bytes']))
         self._set('net_rx_bytes',float(stat.statdict['network']['rx_bytes']))
@@ -51,7 +51,21 @@ class Container(object):
 
         #TODO: utilize redis increment
         self._set('stats_read', int(self._get('stats_read')) + 1)
+        self.stats.append(stat)
         
+    def _calculate_cpu_percentage(self,newstat,oldstat):
+        """
+        Calculate the cpu usage in percentage form from two stats.
+        """
+        time_delta = newstat.timestamp - oldstat.timestamp
+        sys_delta = newstat.system_cpu - oldstat.system_cpu
+        container_delta = newstat.container_cpu - oldstat.container_cpu
+        if time_delta.total_seconds() > 1:
+            sys_delta = sys_delta / time_delta.total_seconds()
+            container_delta = container_delta / time_delta.total_seconds()
+
+        return (container_delta / sys_delta) * newstat.cpu_count * cpu_tick
+
     def _format_bytes(self,b):
         if b < 1000:
             return '%i' % b + 'b'
