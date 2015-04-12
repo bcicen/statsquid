@@ -43,30 +43,41 @@ class Stat(object):
         return (ts,tz)
 
 class DockerStats(object):
-    def __init__(self,config_file='config.yaml'):
-        self.config = self._load_config(config_file)
+    """
+    DockerStats object subscribes to a redis channel and listens for messages from collectors,
+    processing and storing them back in redis for persistence.
+    params:
+      - redis_host(str): redis host to connect to. default 127.0.0.1
+      - redis_port(int): port to connect to redis host on. default 6379
+
+    """
+    def __init__(self,redis_host='127.0.0.1',redis_port=6379):
         
-        r_host = self.config['redis'].split(':')[0]
-        r_port = self.config['redis'].split(':')[1]
-        self.redis = StrictRedis(host=r_host,port=r_port,db=0)
+        self.redis = StrictRedis(host=redis_host,port=redis_port,db=0)
         self.sub = self.redis.pubsub(ignore_subscribe_messages=True)
-        self.sub.subscribe("stats")
+        self.sub.subscribe(**{'stats':self._process_msg})
+        self.sub.run_in_thread()
+
         self.containers = {}
         self.start_collectors()
-        self.run_forever()
+#        self.run_forever()
 
-    def run_forever(self):
-        while True:
-            msg = self.sub.get_message()
-            if msg:
-                self._process_msg(msg['data'])
+#    def run_forever(self):
+#        while True:
+#            msg = self.sub.get_message()
+#            if msg:
+#                self._process_msg(msg['data'])
 
     def _process_msg(self,msg):
+        """
+        message handler
+        """
+        msg = msg['data']
         stat = Stat(msg)
         cid = stat.container_id
         if cid not in self.containers:
-	    #create a new container object to track stats if we haven't
-	    #seen this container before
+            #create a new container object to track stats if we haven't
+            #seen this container before
             self.containers[cid] = Container(cid,self.redis)
         self.containers[cid].append_stat(stat)
 
@@ -80,7 +91,3 @@ class DockerStats(object):
         for collector in self.collectors:
             log.debug('performing reload for %s collector' % collector.host)
             collector.reload()
-
-    def _load_config(self,config_file):
-        of = open(config_file, 'r')
-        return yaml.load(of.read())
