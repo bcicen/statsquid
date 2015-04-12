@@ -1,17 +1,17 @@
-# Dockerstats
+# StatSquid
 
 NOTE: This project is a work in progress. When it is suitable for production use, this message will be removed and a release will be made
 
-dockerstats is a python module for aggregating containers stats across multiple docker hosts 
+statsquid is a python module for aggregating containers stats across multiple docker hosts 
 
 # Install
 
 # Usage
 
 ```python
-from dockerstats import DockerStats
+from statsquid import statsquid
 
-ds = DockerStats(config_file='config.yaml') #see config-sample.yaml for sample config file
+ds = statsquid(config_file='config.yaml') #see config-sample.yaml for sample config file
 ds.get_stat()
 ```
 

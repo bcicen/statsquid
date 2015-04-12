@@ -1,13 +1,13 @@
 from setuptools import setup
-from dockerstats import __version__
+from statsquid import __version__
 
-setup(name='dockerstats',
+setup(name='statsquid',
       version=__version__,
-      packages=['dockerstats'],
+      packages=['statsquid'],
       description='Docker container stats aggregator',
       author='Bradley Cicenas',
       author_email='bradley.cicenas@gmail.com',
-      url='https://github.com/bcicen/dockerstats',
+      url='https://github.com/bcicen/statsquid',
       install_requires=['docker-py >= 1.0.0','urllib3 >= 1.8'],
       license='http://opensource.org/licenses/MIT',
       classifiers=(
