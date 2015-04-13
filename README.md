@@ -1,5 +1,7 @@
 # StatSquid
 
+![logo][logo]
+
 NOTE: This project is a work in progress. When it is suitable for production use, this message will be removed and a release will be made
 
 statsquid is a python module for aggregating containers stats across multiple docker hosts 
@@ -20,3 +22,5 @@ ds.get_stat()
 ```
 
 # Documentation
+
+[logo]: https://raw.githubusercontent.com/bcicen/statsquid/master/statsquid.png
