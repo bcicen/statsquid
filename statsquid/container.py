@@ -45,12 +45,14 @@ class Container(object):
         self._set('mem',float(stat.statdict['memory_stats']['usage']))
         self._set('net_tx_bytes',float(stat.statdict['network']['tx_bytes']))
         self._set('net_rx_bytes',float(stat.statdict['network']['rx_bytes']))
+        self._set('source',stat.statdict['source'])
         #TODO: add io read/write metrics
         #self._set('io_read_bytes',float(stat.statdict['io_service_bytes_recursive']['rx_bytes'])
         #self._set('io_write_bytes',float(stat.statdict['io_service_bytes_recursive']['rx_bytes'])
 
         #TODO: utilize redis increment
         self._set('stats_read', int(self._get('stats_read')) + 1)
+        self._set('last_read', stat.timestamp)
         self.stats.append(stat)
         
     def _calculate_cpu_percentage(self,newstat,oldstat):

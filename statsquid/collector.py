@@ -22,7 +22,7 @@ class StatCollector(object):
         self.redis   = StrictRedis(host=redis_host,port=redis_port,db=0)
         self.stopped = False
         self.threads = []
-        log.info('starting collector on source %s' % self.source)
+        print('starting collector on source %s' % self.source)
         self.reload()
 
     def _collector(self,cid,cname):

@@ -55,9 +55,21 @@ class StatListener(object):
         self.sub = self.redis.pubsub(ignore_subscribe_messages=True)
         self.sub.subscribe('stats')
 
+        self.containers = {}
+        self.running = True
+
         self.run_forever()
 
+    def output(self,msg):
+        """
+        simple output wrapper to append date to printed message
+        """
+        print('%s: %s' % (datetime.now(), msg))
+
+    #TODO: run message loop in own thread, add stop method
+    #TODO: batch-process stats to reduce load on while loop
     def run_forever(self):
+        self.output('listener started')
         while True:
             msg = self.sub.get_message()
             if msg:
@@ -67,7 +79,6 @@ class StatListener(object):
         """
         message handler
         """
-        msg = msg['data']
         stat = Stat(msg)
         cid = stat.container_id
         if cid not in self.containers:
