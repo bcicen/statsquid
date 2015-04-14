@@ -67,15 +67,3 @@ class Container(object):
             container_delta = container_delta / time_delta.total_seconds()
 
         return (container_delta / sys_delta) * newstat.cpu_count * cpu_tick
-
-    def _format_bytes(self,b):
-        if b < 1000:
-            return '%i' % b + 'b'
-        elif 1000 <= b < 1000000:
-            return '%.1f' % float(b/1000) + 'kb'
-        elif 1000000 <= b < 1000000000:
-            return '%.1f' % float(b/1000000) + 'mb'
-        elif 1000000000 <= b < 1000000000000:
-            return '%.1f' % float(b/1000000000) + 'gb'
-        elif 1000000000000 <= b:
-            return '%.1f' % float(b/1000000000000) + 'tb'

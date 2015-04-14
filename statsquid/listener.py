@@ -18,7 +18,7 @@ class Stat(object):
 
         self.container_cpu = self.statdict['cpu_stats']['cpu_usage']['total_usage']
         self.system_cpu = self.statdict['cpu_stats']['system_cpu_usage']
-        self.cpu_count =  len(self.statdict['cpu_stats']['cpu_usage']['percpu_usage'])
+        self.cpu_count =  self.statdict['ncpu']
 
     def _readtime(self,timestamp):
         d,t = timestamp.split('T')

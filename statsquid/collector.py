@@ -19,6 +19,7 @@ class StatCollector(object):
     def __init__(self,docker_host,redis_host='127.0.0.1',redis_port=6379):
         self.docker  = Client(base_url=docker_host)
         self.source  = self.docker.info()['Name']
+        self.ncpu    = self.docker.info()['NCPU']
         self.redis   = StrictRedis(host=redis_host,port=redis_port,db=0)
         self.stopped = False
         self.threads = []
@@ -41,6 +42,7 @@ class StatCollector(object):
             s['container_name'] = cname
             s['container_id'] = cid
             s['source'] = self.source
+            s['ncpu'] = self.ncpu
             self.redis.publish("stats",json.dumps(s))
             if self.stopped:
                 log.info('collector stopped for container %s' % cid)
