@@ -18,4 +18,8 @@ setup(name='statsquid',
           'Programming Language :: Python :: 2.6',
           'Programming Language :: Python :: 2.7',
       ),
-      keywords='docker stats docker-py')
+      keywords='docker stats docker-py',
+      entry_points = {
+        'console_scripts' : ['statsquid = statsquid.statsquid:main']
+      }
+)
