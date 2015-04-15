@@ -1,13 +1,10 @@
-#!/usr/bin/env python
-
 import os,sys,logging,signal
 from argparse import ArgumentParser
-#from . import __version__
+from . import __version__
+from top import StatSquidTop
 from listener import StatListener
 from collector import StatCollector
-from top import StatSquidTop
 
-__version__ = 'alpha'
 log = logging.getLogger('statsquid')
 
 class StatSquid(object):
@@ -43,16 +40,16 @@ class StatSquid(object):
 
 def main():
     commands = [ 'agent', 'master', 'top' ]
+    envvars = { 'REDIS_HOST' : 'redis_host',
+                'REDIS_PORT' : 'redis_port',
+                'DOCKER_HOST' : 'docker_host',
+                'DOCKER_PORT' : 'docker_port' }
 
     parser = ArgumentParser(description='statsquid %s' % __version__)
     parser.add_argument('--docker-host',
                         dest='docker_host',
                         help='docker host to connect to (default: tcp://127.0.0.1:4243)',
                         default='tcp://127.0.0.1:4243')
-    parser.add_argument('--docker-port',
-                        dest='docker_port',
-                        help='docker port to connect on (default: 4243)',
-                        default=4243)
     parser.add_argument('--redis-host',
                         dest='redis_host',
                         help='redis host to connect to (default: 127.0.0.1)',
@@ -62,14 +59,17 @@ def main():
                         help='redis port to connect on (default: 6379)',
                         default='6379')
     parser.add_argument('command',
-                        help='Mode to run as or command to run (%s)' % \
-                                ','.join(commands))
+                        help='statsquid mode (%s)' % ','.join(commands))
 
     args = parser.parse_args()
 
     if args.command not in commands:
-        log.error('Unknown command %s' % args.command)
+        print('Unknown command %s' % args.command)
         exit(1)
+
+    #override args with env vars
+    [ args.__setattr__(v,os.getenv(k)) \
+            for k,v in envvars.iteritems() if os.getenv(k) ]
 
     if args.command == 'top':
         StatSquidTop(redis_host=args.redis_host,redis_port=args.redis_port)
