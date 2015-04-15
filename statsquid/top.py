@@ -5,7 +5,7 @@ from redis import StrictRedis
 
 class StatSquidTop(object):
     def __init__(self,redis_host='127.0.0.1',redis_port=6379):
-        self.redis = StrictRedis()
+        self.redis = StrictRedis(host=redis_host,port=redis_port)
         self.poll()
 
     def sig_handler(self, signal, frame):

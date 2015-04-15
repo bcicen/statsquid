@@ -40,16 +40,17 @@ class StatSquid(object):
 
 def main():
     commands = [ 'agent', 'master', 'top' ]
-    envvars = { 'REDIS_HOST' : 'redis_host',
-                'REDIS_PORT' : 'redis_port',
-                'DOCKER_HOST' : 'docker_host',
-                'DOCKER_PORT' : 'docker_port' }
+    envvars = { 'STATSQUID_COMMAND' : 'command',
+                'STATSQUID_REDIS_HOST' : 'redis_host',
+                'STATSQUID_REDIS_PORT' : 'redis_port',
+                'STATSQUID_DOCKER_HOST' : 'docker_host',
+                'STATSQUID_DOCKER_PORT' : 'docker_port' }
 
     parser = ArgumentParser(description='statsquid %s' % __version__)
     parser.add_argument('--docker-host',
                         dest='docker_host',
-                        help='docker host to connect to (default: tcp://127.0.0.1:4243)',
-                        default='tcp://127.0.0.1:4243')
+                        help='docker host to connect to (default: unix://var/run/docker.sock)',
+                        default='unix://var/run/docker.sock')
     parser.add_argument('--redis-host',
                         dest='redis_host',
                         help='redis host to connect to (default: 127.0.0.1)',
@@ -58,18 +59,23 @@ def main():
                         dest='redis_port',
                         help='redis port to connect on (default: 6379)',
                         default='6379')
-    parser.add_argument('command',
-                        help='statsquid mode (%s)' % ','.join(commands))
+    parser.add_argument('--command',
+                        dest='command',
+                        help='statsquid mode (%s)' % ','.join(commands),
+                        default=None)
 
     args = parser.parse_args()
-
-    if args.command not in commands:
-        print('Unknown command %s' % args.command)
-        exit(1)
 
     #override args with env vars
     [ args.__setattr__(v,os.getenv(k)) \
             for k,v in envvars.iteritems() if os.getenv(k) ]
+
+    if not args.command:
+        print('No command provided')
+        exit(1)
+    if args.command not in commands:
+        print('Unknown command %s' % args.command)
+        exit(1)
 
     if args.command == 'top':
         StatSquidTop(redis_host=args.redis_host,redis_port=args.redis_port)
