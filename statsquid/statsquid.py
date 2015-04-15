@@ -43,8 +43,7 @@ def main():
     envvars = { 'STATSQUID_COMMAND' : 'command',
                 'STATSQUID_REDIS_HOST' : 'redis_host',
                 'STATSQUID_REDIS_PORT' : 'redis_port',
-                'STATSQUID_DOCKER_HOST' : 'docker_host',
-                'STATSQUID_DOCKER_PORT' : 'docker_port' }
+                'STATSQUID_DOCKER_HOST' : 'docker_host' }
 
     parser = ArgumentParser(description='statsquid %s' % __version__)
     parser.add_argument('--docker-host',
