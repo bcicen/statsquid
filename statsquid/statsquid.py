@@ -21,6 +21,7 @@ class StatSquid(object):
     def __init__(self,role,options):
         self.role = role
         signal.signal(signal.SIGTERM, self.sig_handler)
+        print('Starting statsquid %s' % role)
         if self.role == 'master':
             self.instance = self.start_master(options)
         if self.role == 'agent':
@@ -31,11 +32,7 @@ class StatSquid(object):
                             redis_port=opts['redis_port'])
 
     def start_agent(self,opts):
-        #format docker url
-        docker_url = "tcp://" + opts['docker_host'] + \
-                       ":" + str(opts['docker_port'])
-
-        return StatCollector(docker_url,
+        return StatCollector(opts['docker_host'],
                             redis_host=opts['redis_host'],
                             redis_port=opts['redis_port'])
 
@@ -46,11 +43,12 @@ class StatSquid(object):
 
 def main():
     commands = [ 'agent', 'master', 'top' ]
+
     parser = ArgumentParser(description='statsquid %s' % __version__)
     parser.add_argument('--docker-host',
                         dest='docker_host',
-                        help='docker host to connect to (default: 127.0.0.1)',
-                        default='127.0.0.1')
+                        help='docker host to connect to (default: tcp://127.0.0.1:4243)',
+                        default='tcp://127.0.0.1:4243')
     parser.add_argument('--docker-port',
                         dest='docker_port',
                         help='docker port to connect on (default: 4243)',

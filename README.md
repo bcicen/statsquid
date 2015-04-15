@@ -6,7 +6,12 @@
 
 Statsquid aggregates containers stats from multiple docker hosts
 
-# Install
+# Quickstart
+
+## Standalone
+
+
+##
 ```bash
 git clone https://github.com/bcicen/statsquid.git
 cd statsquid/
