@@ -1,5 +1,4 @@
-__version__ = '0.0.2'
+__version__ = '0.0.9'
 
 import logging
-
 logging.basicConfig(level=logging.DEBUG)
