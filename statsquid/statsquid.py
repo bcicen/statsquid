@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 #from . import __version__
 from listener import StatListener
 from collector import StatCollector
+from top import StatSquidTop
 
 __version__ = 'alpha'
 log = logging.getLogger('statsquid')
@@ -44,7 +45,7 @@ class StatSquid(object):
         sys.exit(0)
 
 def main():
-    commands = [ 'agent', 'master' ]
+    commands = [ 'agent', 'master', 'top' ]
     parser = ArgumentParser(description='statsquid %s' % __version__)
     parser.add_argument('--docker-host',
                         dest='docker_host',
@@ -72,7 +73,10 @@ def main():
         log.error('Unknown command %s' % args.command)
         exit(1)
 
-    s = StatSquid(args.command,args.__dict__)
+    if args.command == 'top':
+        StatSquidTop(redis_host=args.redis_host,redis_port=args.redis_port)
+    else:
+        s = StatSquid(args.command,args.__dict__)
 
 
 if __name__ == '__main__':
