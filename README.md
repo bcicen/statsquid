@@ -66,3 +66,10 @@ STATSQUID_DOCKER_HOST
 ```
 
 # Improvements
+
+Statsquid is still an early stage project so there's quite a few things on wishlist:
+- Adding stat shipping plugins to the master server(statsd,librato,etc.)
+- Add master-agent communication to stop or start following stats for specific containers
+- Improve roll-up of metrics for arbitrary time period averaging
+- Replace redis pub/sub communication with tcp sockets
+- Add cumulative and interval delta views to top component 
