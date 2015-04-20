@@ -42,9 +42,12 @@ class Container(object):
         if len(self.stats) > 0:
             cpu_percent = self._calculate_cpu_percentage(stat,self.stats[-1])
             self._set('cpu',round(cpu_percent,2))
+            rx,tx = self._calculate_net_delta(stat,self.stats[-1])
+            self._set('net_rx', rx)
+            self._set('net_tx', tx)
         self._set('mem',float(stat.statdict['memory_stats']['usage']))
-        self._set('net_tx_bytes',float(stat.statdict['network']['tx_bytes']))
-        self._set('net_rx_bytes',float(stat.statdict['network']['rx_bytes']))
+        self._set('net_tx_bytes_total',float(stat.statdict['network']['tx_bytes']))
+        self._set('net_rx_bytes_total',float(stat.statdict['network']['rx_bytes']))
         self._set('source',stat.statdict['source'])
         #TODO: add io read/write metrics
         #self._set('io_read_bytes',float(stat.statdict['io_service_bytes_recursive']['rx_bytes'])
@@ -54,6 +57,16 @@ class Container(object):
         self._set('stats_read', int(self._get('stats_read')) + 1)
         self._set('last_read', stat.timestamp)
         self.stats.append(stat)
+
+    def _calculate_net_delta(self,newstat,oldstat):
+        time_delta = newstat.timestamp - oldstat.timestamp
+        rx_delta = newstat.statdict['network']['rx_bytes'] - oldstat.statdict['network']['rx_bytes']
+        tx_delta = newstat.statdict['network']['tx_bytes'] - oldstat.statdict['network']['tx_bytes']
+        if time_delta.total_seconds() > 1:
+            rx_delta = rx_delta / time_delta.total_seconds()
+            tx_delta = tx_delta / time_delta.total_seconds()
+
+        return (rx_delta,tx_delta) 
         
     def _calculate_cpu_percentage(self,newstat,oldstat):
         """

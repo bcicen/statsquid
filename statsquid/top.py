@@ -40,8 +40,8 @@ class StatSquidTop(object):
                 s.addstr(cid_line, 25, stats[cid]['id'][:12])
                 s.addstr(cid_line, 41, stats[cid]['cpu'])
                 s.addstr(cid_line, 48, format_bytes(stats[cid]['mem']))
-                s.addstr(cid_line, 64, format_bytes(stats[cid]['net_tx_bytes']))
-                s.addstr(cid_line, 80, format_bytes(stats[cid]['net_rx_bytes']))
+                s.addstr(cid_line, 64, format_bytes(stats[cid]['net_tx']))
+                s.addstr(cid_line, 80, format_bytes(stats[cid]['net_rx']))
                 s.addstr(cid_line, 96, stats[cid]['source'])
                 cid_line += 1
             s.refresh()
