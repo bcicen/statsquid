@@ -35,6 +35,7 @@ class StatCollector(object):
          - cid(str): ID of container to collect stats from
          - cname(str): Name of container
         """
+        sleep(5) # sleep to allow container to fully start
         log.info('starting collector for container %s' % cid)
         stats = self.docker.stats(cid)
         for stat in stats:
