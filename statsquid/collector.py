@@ -1,9 +1,10 @@
-import json,logging,threading
+import json,logging
+from time import sleep
 from docker import Client
 from redis import StrictRedis
-from time import sleep
+from multiprocessing import Process 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('statsquid')
 
 class StatCollector(object):
@@ -17,12 +18,12 @@ class StatCollector(object):
      - redis_port(int): port to connect to redis host on. default 6379
     """
     def __init__(self,docker_host,redis_host='127.0.0.1',redis_port=6379):
-        self.docker  = Client(base_url=docker_host)
-        self.source  = self.docker.info()['Name']
-        self.ncpu    = self.docker.info()['NCPU']
-        self.redis   = StrictRedis(host=redis_host,port=redis_port,db=0)
-        self.stopped = False
-        self.threads = []
+        self.docker     = Client(base_url=docker_host)
+        self.source     = self.docker.info()['Name']
+        self.ncpu       = self.docker.info()['NCPU']
+        self.redis      = StrictRedis(host=redis_host,port=redis_port,db=0)
+        self.children   = []
+
         print('starting collector on source %s' % self.source)
         self.reload()
 
@@ -44,34 +45,53 @@ class StatCollector(object):
             s['source'] = self.source
             s['ncpu'] = self.ncpu
             self.redis.publish("stats",json.dumps(s))
-            if self.stopped:
-                log.info('collector stopped for container %s' % cid)
-                return
+    
+    def _event_listener(self):
+        """
+        Worker to listen for docker events and dynamically add or remove
+        stat collectors based on start and die events
+        """
+        log.info('starting event listener')
+        for event in self.docker.events():
+            event = json.loads(event)
+            if event['status'] == 'start':
+                self._add_collector(event['id'])
+            if event['status'] == 'die':
+                self._remove_collector(event['id'])
 
-    #TODO: dynamically add and return containers based on docker events
     def reload(self):
         self.stop()
 
-        for cid,cname in self._get_containers().items():
-            log.debug('creating collector for container %s' % cid)
-            self.threads.append(
-                    threading.Thread(
-                        target=self._collector,
-                        name=cid,
-                        args=(cid,cname)
-                        )
-                    )
+        for cid in [ c['Id'] for c in self.docker.containers() ]:
+            self._add_collector(cid)
 
-        [ t.start() for t in self.threads ] 
+        #start event listener
+        el = Process(target=self._event_listener,name='event_listener')
+        el.start()
+        self.children.append(el)
 
     def stop(self):
-        self.stopped = True
-        for idx,t in enumerate(self.threads):
-            while t.is_alive():
+        for c in self.children:
+            c.terminate()
+            while c.is_alive():
                 sleep(.2)
-        self.threads = []
-        self.stopped = False
+        #self.children = []
 
-    def _get_containers(self):
-        containers = self.docker.containers()
-        return { c['Id'] : c['Names'][0].strip('/') for c in containers }
+    def _add_collector(self,cid):
+        log.debug('creating collector for container %s' % cid)
+        cname = self.docker.inspect_container(cid)['Name'].strip('/')
+
+        p = Process(target=self._collector,name=cid,args=(cid,cname))
+        self.children.append(p)
+
+        p.start()
+
+    def _remove_collector(self,cid):
+        c = self._get_collector(cid)
+        c.terminate()
+        while c.is_alive():
+            sleep(.2)
+        log.info('collector stopped for container %s' % cid)
+
+    def _get_collector(self,cid):
+        return [ p for p in self.children if p.name == cid ][0]
