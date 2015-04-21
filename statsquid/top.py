@@ -6,6 +6,15 @@ from redis import StrictRedis
 class StatSquidTop(object):
     def __init__(self,redis_host='127.0.0.1',redis_port=6379):
         self.redis = StrictRedis(host=redis_host,port=redis_port)
+        self.keys = [
+                'name',
+                'id',
+                'cpu',
+                'mem',
+                'net_rx',
+                'net_tx',
+                'source'
+                ]
         self.poll()
 
     def sig_handler(self, signal, frame):
@@ -24,7 +33,10 @@ class StatSquidTop(object):
 
             #first build a dictionary with all containers
             for cid in self.redis.keys():
-                stats[cid] = self.redis.hgetall(cid)
+                cidstats = self.redis.hgetall(cid)
+                #only include containers with all req keys
+                if not False in [cidstats.has_key(k) for k in self.keys]:
+                    stats[cid] = cidstats
             
             #now display it 
             s.addstr(2, 2, "NAME")
