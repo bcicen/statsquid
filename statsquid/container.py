@@ -1,4 +1,5 @@
 import logging,json
+from util import unix_time
 
 log = logging.getLogger('statsquid')
 
@@ -55,7 +56,7 @@ class Container(object):
 
         #TODO: utilize redis increment
         self._set('stats_read', int(self._get('stats_read')) + 1)
-        self._set('last_read', stat.timestamp)
+        self._set('last_read', unix_time(stat.timestamp))
         self.stats.append(stat)
 
     def _calculate_net_delta(self,newstat,oldstat):

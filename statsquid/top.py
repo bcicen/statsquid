@@ -37,7 +37,7 @@ class StatSquidTop(object):
                 if not False in [cidstats.has_key(k) for k in self.keys]:
                     stats[cid] = cidstats
 
-            #remove stale containers
+            #TODO: remove stale containers
             now = datetime.now()
             
             #first line

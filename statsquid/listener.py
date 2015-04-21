@@ -1,5 +1,5 @@
 import json,yaml,logging
-from datetime import datetime
+from datetime import datetime,timedelta
 from redis import StrictRedis
 from container  import Container
 
@@ -12,7 +12,7 @@ class Stat(object):
     def __init__(self,statjson):
         self.raw = statjson
         self.statdict = json.loads(self.raw)
-        self.timestamp,self.timezone = self._readtime(self.statdict['read'])
+        self.timestamp = self._readtime(self.statdict['read'])
         self.container_name = self.statdict['container_name'].split('/')[-1]
         self.container_id = self.statdict['container_id'].split('/')[-1]
 
@@ -26,7 +26,7 @@ class Stat(object):
         year,month,day = d.split('-')
         if '-' in t:
             t,tz = t.split('-')
-            tz = '+' + tz
+            tz = tz
         if '+' in t:
             t,tz = t.split('-')
             tz = '-' + tz
@@ -40,7 +40,8 @@ class Stat(object):
                       int(minute),
                       int(second),
                       int(microsecond[0:6]))
-        return (ts,tz)
+        ts = ts + timedelta(hours=int(tz.strip(':00')))
+        return ts
 
 class StatListener(object):
     """
