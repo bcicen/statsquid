@@ -1,5 +1,5 @@
 import os,sys,signal,curses
-from time import time
+from datetime import datetime
 from util import format_bytes
 from redis import StrictRedis
 
@@ -21,7 +21,6 @@ class StatSquidTop(object):
         curses.endwin()
         sys.exit(0)
 
-    #TODO: add cleanup of non-reporting/exited containers and clean adding of new ones
     def poll(self):
         stats = {}
         s = curses.initscr()
@@ -37,25 +36,31 @@ class StatSquidTop(object):
                 #only include containers with all req keys
                 if not False in [cidstats.has_key(k) for k in self.keys]:
                     stats[cid] = cidstats
+
+            #remove stale containers
+            now = datetime.now()
             
-            #now display it 
-            s.addstr(2, 2, "NAME")
-            s.addstr(2, 25, "ID")
-            s.addstr(2, 41, "CPU")
-            s.addstr(2, 48, "MEM")
-            s.addstr(2, 64, "NET TX")
-            s.addstr(2, 80, "NET RX")
-            s.addstr(2, 96, "HOST")
-            cid_line = 4
+            #first line
+            s.addstr(1, 2, 'statsquid top -')
+            s.addstr(1, 18, now.strftime('%H:%m:%S'))
+            s.addstr(1, 28, ('%s containers' % len(stats)))
+            s.addstr(3, 2, "NAME")
+            s.addstr(3, 25, "ID")
+            s.addstr(3, 41, "CPU")
+            s.addstr(3, 48, "MEM")
+            s.addstr(3, 64, "NET TX")
+            s.addstr(3, 80, "NET RX")
+            s.addstr(3, 96, "HOST")
+            line = 5
             for cid in stats:
-                s.addstr(cid_line, 2,  stats[cid]['name'][:20])
-                s.addstr(cid_line, 25, stats[cid]['id'][:12])
-                s.addstr(cid_line, 41, stats[cid]['cpu'])
-                s.addstr(cid_line, 48, format_bytes(stats[cid]['mem']))
-                s.addstr(cid_line, 64, format_bytes(stats[cid]['net_tx']))
-                s.addstr(cid_line, 80, format_bytes(stats[cid]['net_rx']))
-                s.addstr(cid_line, 96, stats[cid]['source'])
-                cid_line += 1
+                s.addstr(line, 2,  stats[cid]['name'][:20])
+                s.addstr(line, 25, stats[cid]['id'][:12])
+                s.addstr(line, 41, stats[cid]['cpu'])
+                s.addstr(line, 48, format_bytes(stats[cid]['mem']))
+                s.addstr(line, 64, format_bytes(stats[cid]['net_tx']))
+                s.addstr(line, 80, format_bytes(stats[cid]['net_rx']))
+                s.addstr(line, 96, stats[cid]['source'])
+                line += 1
             s.refresh()
             x = s.getch()
             if x == ord('q'):

@@ -21,6 +21,7 @@ class Stat(object):
         self.cpu_count =  self.statdict['ncpu']
 
     def _readtime(self,timestamp):
+        #TODO: use time.strptime
         d,t = timestamp.split('T')
         year,month,day = d.split('-')
         if '-' in t:
