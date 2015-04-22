@@ -1,4 +1,5 @@
 import os,sys,signal,curses
+from curses.textpad import Textbox,rectangle
 from datetime import datetime
 from util import format_bytes,unix_time
 from redis import StrictRedis
@@ -24,9 +25,11 @@ class StatSquidTop(object):
 
     def poll(self):
         s = curses.initscr()
+        curses.noecho()
         s.timeout(1000)
         s.border(0)
         while True:
+            h,w = s.getmaxyx()
             signal.signal(signal.SIGINT, self.sig_handler)
             s.clear()
 
@@ -42,6 +45,7 @@ class StatSquidTop(object):
                     if now_seconds - int(cidstats['last_read']) < 5:
                         stats[cid] = cidstats
 
+            #TODO: add filtering for name, host, id based on "host:<str>" filter
             if self.filter:
                 stats = { k:v for k,v in stats.iteritems() \
                           if self.filter in stats[k]['name'] }
@@ -50,6 +54,8 @@ class StatSquidTop(object):
             s.addstr(1, 2, 'statsquid top -')
             s.addstr(1, 18, now.strftime('%H:%M:%S'))
             s.addstr(1, 28, ('%s containers' % len(stats)))
+            if self.filter:
+                s.addstr(1, 42, ('filter: %s' % self.filter))
 
             #second line
             s.addstr(3, 2, "NAME", curses.A_BOLD)
@@ -75,4 +81,19 @@ class StatSquidTop(object):
             x = s.getch()
             if x == ord('q'):
                 break
+            if x == ord('f'):
+                startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
+
+                s.addstr(10, startx, "String to filter for:")
+
+                editwin = curses.newwin(1,30, 12,(startx+1))
+                rectangle(s, 11,startx, 13,(startx+31))
+                s.refresh()
+
+                box = Textbox(editwin)
+                box.edit()
+
+                self.filter = str(box.gather()).strip(' ')
+
         curses.endwin()
+        print(self.filter)
