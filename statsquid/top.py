@@ -38,7 +38,7 @@ class StatSquidTop(object):
                 #only include containers with all req keys
                 if not False in [cidstats.has_key(k) for k in self.keys]:
                     #and only if update within last 5s
-                    if now_seconds - int(stats[cid]['last_read']) < 5:
+                    if now_seconds - int(cidstats['last_read']) < 5:
                         stats[cid] = cidstats
 
             #first line

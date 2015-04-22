@@ -1,4 +1,4 @@
-import os,sys,logging,signal
+import os,sys,logging
 from argparse import ArgumentParser
 from . import __version__
 from top import StatSquidTop
@@ -6,37 +6,6 @@ from listener import StatListener
 from collector import StatCollector
 
 log = logging.getLogger('statsquid')
-
-class StatSquid(object):
-    """
-    StatSquid 
-    params:
-     - role(str): Role of this statsquid instance. Either master or agent.
-     - options(dict): dictionary of options to start instance with
-    """
-    #TODO: improve graceful exiting, fix signal catching
-    def __init__(self,role,options):
-        self.role = role
-        signal.signal(signal.SIGTERM, self.sig_handler)
-        print('Starting statsquid %s' % role)
-        if self.role == 'master':
-            self.instance = self.start_master(options)
-        if self.role == 'agent':
-            self.instance = self.start_agent(options)
-        
-    def start_master(self,opts):
-        return StatListener(redis_host=opts['redis_host'],
-                            redis_port=opts['redis_port'])
-
-    def start_agent(self,opts):
-        return StatCollector(opts['docker_host'],
-                            redis_host=opts['redis_host'],
-                            redis_port=opts['redis_port'])
-
-    def sig_handler(self,signal,frame):
-        print('signal caught, exiting')
-        self.instance.stop()
-        sys.exit(0)
 
 def main():
     commands = [ 'agent', 'master', 'top' ]
@@ -78,9 +47,15 @@ def main():
 
     if args.command == 'top':
         StatSquidTop(redis_host=args.redis_host,redis_port=args.redis_port)
-    else:
-        s = StatSquid(args.command,args.__dict__)
 
+    if args.command == 'master':
+        s = StatListener(redis_host=args.redis_host,
+                         redis_port=args.redis_port)
+
+    if args.command == 'agent':
+        s = StatCollector(args.docker_host,
+                          redis_host=args.redis_host,
+                          redis_port=args.redis_port)
 
 if __name__ == '__main__':
     main()
