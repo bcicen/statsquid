@@ -4,7 +4,8 @@ from util import format_bytes,unix_time
 from redis import StrictRedis
 
 class StatSquidTop(object):
-    def __init__(self,redis_host='127.0.0.1',redis_port=6379):
+    def __init__(self,redis_host='127.0.0.1',redis_port=6379,filter=None):
+        self.filter = filter
         self.redis = StrictRedis(host=redis_host,port=redis_port)
         self.keys = [
                 'name',
@@ -22,7 +23,6 @@ class StatSquidTop(object):
         sys.exit(0)
 
     def poll(self):
-        stats = {}
         s = curses.initscr()
         s.timeout(1000)
         s.border(0)
@@ -31,7 +31,8 @@ class StatSquidTop(object):
             s.clear()
 
             #first build a dictionary with all containers
-            now = datetime.now()
+            stats = {}
+            now = datetime.utcnow()
             now_seconds = unix_time(now)
             for cid in self.redis.keys():
                 cidstats = self.redis.hgetall(cid)
@@ -41,26 +42,34 @@ class StatSquidTop(object):
                     if now_seconds - int(cidstats['last_read']) < 5:
                         stats[cid] = cidstats
 
+            if self.filter:
+                stats = { k:v for k,v in stats.iteritems() \
+                          if self.filter in stats[k]['name'] }
+
             #first line
             s.addstr(1, 2, 'statsquid top -')
-            s.addstr(1, 18, now.strftime('%H:%m:%S'))
+            s.addstr(1, 18, now.strftime('%H:%M:%S'))
             s.addstr(1, 28, ('%s containers' % len(stats)))
-            s.addstr(3, 2, "NAME")
-            s.addstr(3, 25, "ID")
-            s.addstr(3, 41, "CPU")
-            s.addstr(3, 48, "MEM")
-            s.addstr(3, 64, "NET TX")
-            s.addstr(3, 80, "NET RX")
-            s.addstr(3, 96, "HOST")
+
+            #second line
+            s.addstr(3, 2, "NAME", curses.A_BOLD)
+            s.addstr(3, 25, "ID", curses.A_BOLD)
+            s.addstr(3, 41, "CPU", curses.A_BOLD)
+            s.addstr(3, 48, "MEM", curses.A_BOLD)
+            s.addstr(3, 58, "NET TX", curses.A_BOLD)
+            s.addstr(3, 68, "NET RX", curses.A_BOLD)
+            s.addstr(3, 78, "HOST", curses.A_BOLD)
+
+            #remainder of lines
             line = 5
             for cid in stats:
                 s.addstr(line, 2,  stats[cid]['name'][:20])
                 s.addstr(line, 25, stats[cid]['id'][:12])
                 s.addstr(line, 41, stats[cid]['cpu'])
                 s.addstr(line, 48, format_bytes(stats[cid]['mem']))
-                s.addstr(line, 64, format_bytes(stats[cid]['net_tx']))
-                s.addstr(line, 80, format_bytes(stats[cid]['net_rx']))
-                s.addstr(line, 96, stats[cid]['source'])
+                s.addstr(line, 58, format_bytes(stats[cid]['net_tx']))
+                s.addstr(line, 68, format_bytes(stats[cid]['net_rx']))
+                s.addstr(line, 78, stats[cid]['source'])
                 line += 1
             s.refresh()
             x = s.getch()

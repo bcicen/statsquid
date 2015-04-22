@@ -90,8 +90,8 @@ class StatCollector(object):
     def _remove_collector(self,cid):
         c = self._get_collector(cid)
         c.terminate()
-        while c.is_alive():
-            sleep(.2)
+        #while c.is_alive():
+        #    sleep(.2)
         log.info('collector stopped for container %s' % cid)
 
     def _get_collector(self,cid):

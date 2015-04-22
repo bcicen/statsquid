@@ -72,10 +72,8 @@ class StatListener(object):
     #TODO: batch-process stats to reduce load on while loop
     def run_forever(self):
         self.output('listener started')
-        while True:
-            msg = self.sub.get_message()
-            if msg:
-                self._process_msg(msg['data'])
+        for msg in self.sub.listen():
+            self._process_msg(msg['data'])
 
     def _process_msg(self,msg):
         """
