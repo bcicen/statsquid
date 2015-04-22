@@ -12,29 +12,22 @@ class Container(object):
     params:
      - container_id(str): Docker container id
      - redis(obj): Instance of a redis client object
+     - flush_interval: Optional. Number of stats to keep in memory before flush
     methods:
      - append_stat: Appends a new stat, recalculating averages
      params:
        - stat(obj): A statsquid.stat object
     """
-    #TODO: add rollup and averaging over time for metrics
-    def __init__(self,container_id,redis):
+    def __init__(self,container_id,redis,flush_interval=60):
+        self.id = container_id
         self.redis = redis
+        self.flush_interval = flush_interval
 
         #setup initial fields in redis 
-        self.id = container_id
         self._set('id',container_id)
         self._set('stats_read',0)
 
         self.stats = []
-
-    def _get(self,attribute):
-        r = self.redis
-        return r.hget(self.id, attribute)
-
-    def _set(self,attribute,value):
-        r = self.redis
-        r.hset(self.id, attribute, value) 
 
     def append_stat(self,stat):
         if not self._get('name'):
@@ -58,6 +51,21 @@ class Container(object):
         self._set('stats_read', int(self._get('stats_read')) + 1)
         self._set('last_read', unix_time(stat.timestamp))
         self.stats.append(stat)
+
+        if len(self.stats) > self.flush_interval: 
+            self._flush()
+
+    def _get(self,attribute):
+        r = self.redis
+        return r.hget(self.id, attribute)
+
+    def _set(self,attribute,value):
+        r = self.redis
+        r.hset(self.id, attribute, value) 
+
+    def _flush(self):
+        del self.stats[:-1] # remove all but most recent stat
+        log.debug('flush performed for container %s' % self.id)
 
     def _calculate_net_delta(self,newstat,oldstat):
         time_delta = newstat.timestamp - oldstat.timestamp
