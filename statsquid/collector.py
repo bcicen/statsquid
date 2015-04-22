@@ -1,4 +1,4 @@
-import json,logging
+import sys,json,logging,signal
 from time import sleep
 from docker import Client
 from redis import StrictRedis
@@ -24,8 +24,39 @@ class StatCollector(object):
         self.redis      = StrictRedis(host=redis_host,port=redis_port,db=0)
         self.children   = []
 
+        signal.signal(signal.SIGINT, self._sig_handler)
+        signal.signal(signal.SIGTERM, self._sig_handler)
         print('starting collector on source %s' % self.source)
         self.reload()
+
+    def reload(self):
+        self.stop()
+
+        #start a collector for all existing containers
+        for cid in [ c['Id'] for c in self.docker.containers() ]:
+            self._add_collector(cid)
+
+        #start event listener
+        el = Process(target=self._event_listener,name='event_listener')
+        el.start()
+        self.children.append(el)
+
+    def stop(self):
+        #TODO: handle already exited threads better
+        for c in self.children:
+            c.terminate()
+            while c.is_alive():
+                sleep(.2)
+        #self.children = []
+
+    def _sig_handler(self,signal,frame):
+        print('caught %s, exiting' % signal)
+        self.stop()
+        sys.exit(0)
+
+    #####
+    # child process workers 
+    #####
 
     def _collector(self,cid,cname):
         """
@@ -60,23 +91,9 @@ class StatCollector(object):
             if event['status'] == 'die':
                 self._remove_collector(event['id'])
 
-    def reload(self):
-        self.stop()
-
-        for cid in [ c['Id'] for c in self.docker.containers() ]:
-            self._add_collector(cid)
-
-        #start event listener
-        el = Process(target=self._event_listener,name='event_listener')
-        el.start()
-        self.children.append(el)
-
-    def stop(self):
-        for c in self.children:
-            c.terminate()
-            while c.is_alive():
-                sleep(.2)
-        #self.children = []
+    #####
+    # collector methods
+    #####
 
     def _add_collector(self,cid):
         log.debug('creating collector for container %s' % cid)
