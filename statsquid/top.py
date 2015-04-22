@@ -1,6 +1,6 @@
 import os,sys,signal,curses
 from datetime import datetime
-from util import format_bytes
+from util import format_bytes,unix_time
 from redis import StrictRedis
 
 class StatSquidTop(object):
@@ -31,15 +31,16 @@ class StatSquidTop(object):
             s.clear()
 
             #first build a dictionary with all containers
+            now = datetime.now()
+            now_seconds = unix_time(now)
             for cid in self.redis.keys():
                 cidstats = self.redis.hgetall(cid)
                 #only include containers with all req keys
                 if not False in [cidstats.has_key(k) for k in self.keys]:
-                    stats[cid] = cidstats
+                    #and only if update within last 5s
+                    if now_seconds - int(stats[cid]['last_read']) < 5:
+                        stats[cid] = cidstats
 
-            #TODO: remove stale containers
-            now = datetime.now()
-            
             #first line
             s.addstr(1, 2, 'statsquid top -')
             s.addstr(1, 18, now.strftime('%H:%m:%S'))
