@@ -68,6 +68,7 @@ class StatSquidTop(object):
 
             #remainder of lines
             line = 5
+            maxlines = h - 5
             for cid in stats:
                 s.addstr(line, 2,  stats[cid]['name'][:20])
                 s.addstr(line, 25, stats[cid]['id'][:12])
@@ -76,6 +77,8 @@ class StatSquidTop(object):
                 s.addstr(line, 58, format_bytes(stats[cid]['net_tx']))
                 s.addstr(line, 68, format_bytes(stats[cid]['net_rx']))
                 s.addstr(line, 78, stats[cid]['source'])
+                if line >= maxlines:
+                    break
                 line += 1
             s.refresh()
             x = s.getch()
@@ -96,4 +99,3 @@ class StatSquidTop(object):
                 self.filter = str(box.gather()).strip(' ')
 
         curses.endwin()
-        print(self.filter)
