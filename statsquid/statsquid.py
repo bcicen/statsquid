@@ -8,51 +8,50 @@ from collector import StatCollector
 log = logging.getLogger('statsquid')
 
 def main():
-    commands = [ 'agent', 'master', 'top' ]
-    envvars = { 'STATSQUID_COMMAND' : 'command',
-                'STATSQUID_REDIS_HOST' : 'redis_host',
+    envvars = { 'STATSQUID_REDIS_HOST' : 'redis_host',
                 'STATSQUID_REDIS_PORT' : 'redis_port',
                 'STATSQUID_DOCKER_HOST' : 'docker_host' }
 
-    parser = ArgumentParser(description='statsquid %s' % __version__)
-    parser.add_argument('--docker-host',
-                        dest='docker_host',
-                        help='docker host to connect to (default: unix://var/run/docker.sock)',
-                        default='unix://var/run/docker.sock')
-    parser.add_argument('--redis-host',
+    common_parser = ArgumentParser(add_help=False)
+    common_parser.add_argument('--redis-host',
                         dest='redis_host',
-                        help='redis host to connect to (default: 127.0.0.1)',
+                        help='redis host to connect to (127.0.0.1)',
                         default='127.0.0.1')
-    parser.add_argument('--redis-port',
+    common_parser.add_argument('--redis-port',
                         dest='redis_port',
-                        help='redis port to connect on (default: 6379)',
+                        help='redis port to connect on (6379)',
                         default='6379')
-    parser.add_argument('--command',
-                        dest='command',
-                        help='statsquid mode (%s)' % ','.join(commands),
-                        default=None)
+
+    parser = ArgumentParser(description='statsquid %s' % (__version__))
+    subparsers = parser.add_subparsers(description='statsquid subcommands',
+                                       dest='subcommand')
+
+    #master
+    parser_master = subparsers.add_parser('master',parents=[common_parser])
+
+    #agent
+    parser_agent = subparsers.add_parser('agent',parents=[common_parser])
+    parser_agent.add_argument('--docker-host',
+        dest='docker_host',
+        help='docker host to connect to (unix://var/run/docker.sock)',
+        default='unix://var/run/docker.sock')
+
+    #top
+    parser_top = subparsers.add_parser('top',parents=[common_parser])
 
     args = parser.parse_args()
+    #override command line with env vars
+    [ args.__setattr__(v,os.getenv(k)) for k,v \
+            in envvars.iteritems() if os.getenv(k) ]
 
-    #override args with env vars
-    [ args.__setattr__(v,os.getenv(k)) \
-            for k,v in envvars.iteritems() if os.getenv(k) ]
-
-    if not args.command:
-        print('No command provided')
-        exit(1)
-    if args.command not in commands:
-        print('Unknown command %s' % args.command)
-        exit(1)
-
-    if args.command == 'top':
+    if args.subcommand == 'top':
         StatSquidTop(redis_host=args.redis_host,redis_port=args.redis_port)
 
-    if args.command == 'master':
+    if args.subcommand == 'master':
         s = StatListener(redis_host=args.redis_host,
                          redis_port=args.redis_port)
 
-    if args.command == 'agent':
+    if args.subcommand == 'agent':
         s = StatCollector(args.docker_host,
                           redis_host=args.redis_host,
                           redis_port=args.redis_port)
