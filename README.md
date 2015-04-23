@@ -18,7 +18,7 @@ docker-compose up
 
 To view the stats being collected:
 ```bash
-docker run -ti --link statsquid_redis_1:redis -e STATSQUID_REDIS_HOST="redis" bcicen/statsquid --command top
+docker run -ti --link statsquid_redis_1:redis -e STATSQUID_REDIS_HOST="redis" bcicen/statsquid top
 ```
 
 # Components
@@ -27,21 +27,21 @@ docker run -ti --link statsquid_redis_1:redis -e STATSQUID_REDIS_HOST="redis" bc
 
 A single statsquid agent can be started on every Docker host you wish to collect stats from by running:
 ```bash
-docker run -d -e STATSQUID_COMMAND="agent" -e STATSQUID_REDIS_HOST="redis.domain.com" -v /var/run/docker.sock:/var/run/docker.sock bcicen/statsquid
+docker run -d -e STATSQUID_REDIS_HOST="redis.domain.com" -v /var/run/docker.sock:/var/run/docker.sock bcicen/statsquid agent
 ```
 
 ## Master
 
 A statquid master connects to the common redis instance and listens for new stats, storing them for persistence
 ```bash
-docker run -d -e STATSQUID_COMMAND="master" -e STATSQUID_REDIS_HOST="redis.domain.com" bcicen/statsquid
+docker run -d -e STATSQUID_REDIS_HOST="redis.domain.com" bcicen/statsquid master
 ```
 
 ## Top
 
 Statsquid comes with a curses-based top utility that can be used to view the aggregated stats in real time.
 ```bash
-docker run -ti -e STATSQUID_COMMAND="top" -e STATSQUID_REDIS_HOST="redis.domain.com" bcicen/statsquid
+docker run -ti -e STATSQUID_REDIS_HOST="redis.domain.com" bcicen/statsquid top
 ```
 
 # Options
@@ -55,11 +55,9 @@ Statsquid supports the following options:
                         redis host to connect to (default: 127.0.0.1)
   --redis-port REDIS_PORT
                         redis port to connect on (default: 6379)
-  --command COMMAND     statsquid mode (agent,master,top)
 ```
 Likewise, any of the below environmental variables will supersede its equivalent command line option:
 ```
-STATSQUID_COMMAND
 STATSQUID_REDIS_HOST
 STATSQUID_REDIS_PORT
 STATSQUID_DOCKER_HOST
@@ -71,5 +69,4 @@ Statsquid is still an early stage project so there's quite a few things on wishl
 - Adding stat shipping plugins to the master server(statsd,librato,etc.)
 - Add master-agent communication to stop or start following stats for specific containers
 - Improve roll-up of metrics for arbitrary time period averaging
-- Replace redis pub/sub communication with tcp sockets
 - Add cumulative and interval delta views to top component 
