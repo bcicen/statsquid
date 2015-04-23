@@ -1,19 +1,19 @@
 agent:
   image: bcicen/statsquid:latest
+  command: "agent"
   links:
     - redis:redis
   volumes:
     - /var/run/docker.sock:/var/run/docker.sock
   environment:
-    STATSQUID_COMMAND: "agent"
     STATSQUID_REDIS_HOST: "redis"
 
 master:
   image: bcicen/statsquid:latest
+  command: "master"
   links:
     - redis:redis
   environment:
-    STATSQUID_COMMAND: "master"
     STATSQUID_REDIS_HOST: "redis"
 
 redis:
