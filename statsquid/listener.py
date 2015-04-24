@@ -1,4 +1,4 @@
-import json,yaml,logging
+import json,logging
 from datetime import datetime,timedelta
 from redis import StrictRedis
 from container  import Container
@@ -52,28 +52,38 @@ class StatListener(object):
      - redis_port(int): port to connect to redis host on. default 6379
     """
     def __init__(self,redis_host='127.0.0.1',redis_port=6379):
-        
+        self.containers = {}
+        self.log_interval = 60
+        self.start_time = datetime.now()
+
         self.redis = StrictRedis(host=redis_host,port=redis_port,db=0)
         self.sub = self.redis.pubsub(ignore_subscribe_messages=True)
         self.sub.subscribe('stats')
 
-        self.containers = {}
-        self.running = True
-
         self.run_forever()
 
-    def output(self,msg):
+    def run_forever(self):
+        stat_count = 0
+        self._output('listener started')
+        for msg in self.sub.listen():
+            self._process_msg(msg['data'])
+            stat_count += 1
+            if self._is_log_interval():
+                self._output('processed %s stats in last %ss' % \
+                        (stat_count,self.log_interval))
+                stat_count = 0
+
+    def _output(self,msg):
         """
-        simple output wrapper to append date to printed message
+        _output wrapper to append date to printed message
         """
         print('%s: %s' % (datetime.now(), msg))
 
-    #TODO: run message loop in own thread, add stop method
-    #TODO: batch-process stats to reduce load on while loop
-    def run_forever(self):
-        self.output('listener started')
-        for msg in self.sub.listen():
-            self._process_msg(msg['data'])
+    def _is_log_interval(self):
+        uptime = (datetime.now() - self.start_time).total_seconds()
+        if int(uptime) % self.log_interval == 0:
+            return True
+        return False
 
     def _process_msg(self,msg):
         """
