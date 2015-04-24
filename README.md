@@ -18,7 +18,7 @@ docker-compose up
 
 And run the statsquid top utility to view the streamed stats in real-time:
 ```bash
-docker run -ti --link statsquid_redis_1:redis -e STATSQUID_REDIS_HOST="redis" bcicen/statsquid top
+docker run -ti --link statsquid_redis_1:redis bcicen/statsquid top --redis-host redis
 ```
 
 <p align="center">
@@ -31,21 +31,21 @@ docker run -ti --link statsquid_redis_1:redis -e STATSQUID_REDIS_HOST="redis" bc
 
 A single statsquid agent can be started on every Docker host you wish to collect stats from by running:
 ```bash
-docker run -d -e STATSQUID_REDIS_HOST="redis.domain.com" -v /var/run/docker.sock:/var/run/docker.sock bcicen/statsquid agent
+docker run -d -v /var/run/docker.sock:/var/run/docker.sock bcicen/statsquid agent --redis-host redis.mydomain.com
 ```
 
 ## Master
 
 A statquid master connects to the common redis instance and listens for new stats, storing them for persistence
 ```bash
-docker run -d -e STATSQUID_REDIS_HOST="redis.domain.com" bcicen/statsquid master
+docker run -d bcicen/statsquid master --redis-host redis.mydomain.com
 ```
 
 ## Top
 
 Statsquid comes with a curses-based top utility that can be used to view the aggregated stats in real time.
 ```bash
-docker run -ti -e STATSQUID_REDIS_HOST="redis.domain.com" bcicen/statsquid top
+docker run -ti bcicen/statsquid top --redis-host redis.mydomain.com
 ```
 
 # Options
@@ -62,9 +62,9 @@ Statsquid supports the following options:
 ```
 Likewise, any of the below environmental variables will supersede its equivalent command line option:
 ```
+DOCKER_HOST
 STATSQUID_REDIS_HOST
 STATSQUID_REDIS_PORT
-DOCKER_HOST
 ```
 
 # Improvements
