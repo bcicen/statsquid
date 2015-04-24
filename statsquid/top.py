@@ -42,7 +42,7 @@ class StatSquidTop(object):
                 #only include containers with all req keys
                 if not False in [cidstats.has_key(k) for k in self.keys]:
                     #and only if update within last 5s
-                    if now_seconds - int(cidstats['last_read']) < 5:
+                    if now_seconds - int(cidstats['last_read']) < 10:
                         stats[cid] = cidstats
 
             #TODO: add filtering for name, host, id based on "host:<str>" filter
@@ -68,7 +68,7 @@ class StatSquidTop(object):
 
             #remainder of lines
             line = 5
-            maxlines = h - 5
+            maxlines = h - 2
             for cid in stats:
                 s.addstr(line, 2,  stats[cid]['name'][:20])
                 s.addstr(line, 25, stats[cid]['id'][:12])
