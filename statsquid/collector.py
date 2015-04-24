@@ -1,4 +1,4 @@
-import sys,json,logging,signal
+import sys,json,logging
 from time import sleep
 from docker import Client
 from redis import StrictRedis
@@ -24,39 +24,34 @@ class StatCollector(object):
         self.redis      = StrictRedis(host=redis_host,port=redis_port,db=0)
         self.children   = []
 
-        signal.signal(signal.SIGINT, self._sig_handler)
-        signal.signal(signal.SIGTERM, self._sig_handler)
         print('starting collector on source %s' % self.source)
-        self.reload()
+        self.start()
 
-    def reload(self):
-        self.stop()
-
+    def start(self):
         #start a collector for all existing containers
         for cid in [ c['Id'] for c in self.docker.containers() ]:
             self._add_collector(cid)
 
         #start event listener
-        el = Process(target=self._event_listener,name='event_listener')
-        el.start()
-        self.children.append(el)
-
-    def stop(self):
-        #TODO: handle already exited threads better
-        for c in self.children:
-            c.terminate()
-            while c.is_alive():
-                sleep(.2)
-        #self.children = []
+        self._event_listener()
 
     def _sig_handler(self,signal,frame):
         print('caught %s, exiting' % signal)
         self.stop()
         sys.exit(0)
 
-    #####
-    # child process workers 
-    #####
+    def _event_listener(self):
+        """
+        Listen for docker events and dynamically add or remove
+        stat collectors based on start and die events
+        """
+        log.info('starting event listener')
+        for event in self.docker.events():
+            event = json.loads(event)
+            if event['status'] == 'start':
+                self._add_collector(event['id'])
+            if event['status'] == 'die':
+                self._remove_collector(event['id'])
 
     def _collector(self,cid,cname):
         """
@@ -78,19 +73,6 @@ class StatCollector(object):
             s['ncpu'] = self.ncpu
             self.redis.publish("stats",json.dumps(s))
     
-    def _event_listener(self):
-        """
-        Worker to listen for docker events and dynamically add or remove
-        stat collectors based on start and die events
-        """
-        log.info('starting event listener')
-        for event in self.docker.events():
-            event = json.loads(event)
-            if event['status'] == 'start':
-                self._add_collector(event['id'])
-            if event['status'] == 'die':
-                self._remove_collector(event['id'])
-
     #####
     # collector methods
     #####
@@ -100,16 +82,17 @@ class StatCollector(object):
         cname = self.docker.inspect_container(cid)['Name'].strip('/')
 
         p = Process(target=self._collector,name=cid,args=(cid,cname))
-        self.children.append(p)
-
         p.start()
+
+        self.children.append(p)
 
     def _remove_collector(self,cid):
         c = self._get_collector(cid)
         c.terminate()
-        #while c.is_alive():
-        #    sleep(.2)
+        while c.is_alive():
+            sleep(.2)
         log.info('collector stopped for container %s' % cid)
+        self.children = [ c for c in self.children if c.name != cid ]
 
     def _get_collector(self,cid):
         return [ p for p in self.children if p.name == cid ][0]
