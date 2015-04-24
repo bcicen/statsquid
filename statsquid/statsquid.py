@@ -10,7 +10,7 @@ log = logging.getLogger('statsquid')
 def main():
     envvars = { 'STATSQUID_REDIS_HOST' : 'redis_host',
                 'STATSQUID_REDIS_PORT' : 'redis_port',
-                'STATSQUID_DOCKER_HOST' : 'docker_host' }
+                'DOCKER_HOST'          : 'docker_host' }
 
     common_parser = ArgumentParser(add_help=False)
     common_parser.add_argument('--redis-host',

@@ -16,7 +16,7 @@ cd statsquid/
 docker-compose up
 ```
 
-And run the Statsquid top utility to view the streamed stats in real-time:
+And run the statsquid top utility to view the streamed stats in real-time:
 ```bash
 docker run -ti --link statsquid_redis_1:redis -e STATSQUID_REDIS_HOST="redis" bcicen/statsquid top
 ```
