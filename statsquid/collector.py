@@ -4,7 +4,6 @@ from docker import Client
 from redis import StrictRedis
 from multiprocessing import Process 
 
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('statsquid')
 
 class StatCollector(object):
