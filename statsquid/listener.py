@@ -1,4 +1,4 @@
-import json,logging
+import logging,msgpack
 from datetime import datetime,timedelta
 from redis import StrictRedis
 from util import output
@@ -8,11 +8,10 @@ log = logging.getLogger('statsquid')
 
 class Stat(object):
     """
-    Stat object, created from json received from stat collector
+    Stat object created from unpacked message received from collector
     """
-    def __init__(self,statjson):
-        self.raw = statjson
-        self.statdict = json.loads(self.raw)
+    def __init__(self,statdict):
+        self.statdict = statdict
         self.timestamp = self._readtime(self.statdict['read'])
         self.container_name = self.statdict['container_name'].split('/')[-1]
         self.container_id = self.statdict['container_id'].split('/')[-1]
@@ -75,7 +74,7 @@ class StatListener(object):
         stat_count = 0
         output('listener started')
         for msg in self.sub.listen():
-            self._process_msg(msg['data'])
+            self._process_msg(msgpack.unpackb(msg['data']))
             stat_count += 1
             if self._is_log_interval():
                 output('processed %s stats in last %ss' % \
@@ -89,11 +88,11 @@ class StatListener(object):
             return True
         return False
 
-    def _process_msg(self,msg):
+    def _process_msg(self,statdict):
         """
         message handler
         """
-        stat = Stat(msg)
+        stat = Stat(statdict)
         cid = stat.container_id
         if cid not in self.containers:
             #create a new container object to track stats if we haven't

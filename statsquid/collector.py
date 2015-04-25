@@ -1,4 +1,4 @@
-import sys,json,logging,signal
+import sys,json,logging,signal,msgpack
 from time import sleep
 from docker import Client
 from redis import StrictRedis
@@ -72,7 +72,7 @@ class StatCollector(object):
             s['container_id'] = cid
             s['source'] = self.source
             s['ncpu'] = self.ncpu
-            self.redis.publish("stats",json.dumps(s))
+            self.redis.publish("stats",msgpack.packb(s))
             if self.stopped:
                 break
     
