@@ -21,6 +21,8 @@ class Stat(object):
         self.system_cpu = self.statdict['cpu_stats']['system_cpu_usage']
         self.cpu_count =  self.statdict['ncpu']
 
+        self.read_io = 0
+        self.write_io = 0
         for s in self.statdict['blkio_stats']['io_service_bytes_recursive']:
             if s['op'] == 'Read':
                 self.read_io = s['value']
