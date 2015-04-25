@@ -31,14 +31,14 @@ docker run -ti --link statsquid_redis_1:redis bcicen/statsquid top --redis-host 
 
 A single statsquid agent can be started on every Docker host you wish to collect stats from by running:
 ```bash
-docker run -d -v /var/run/docker.sock:/var/run/docker.sock bcicen/statsquid agent --redis-host redis.mydomain.com
+docker run -td -v /var/run/docker.sock:/var/run/docker.sock bcicen/statsquid agent --redis-host redis.mydomain.com
 ```
 
 ## Master
 
 A statquid master connects to the common redis instance and listens for new stats, storing them for persistence
 ```bash
-docker run -d bcicen/statsquid master --redis-host redis.mydomain.com
+docker run -td bcicen/statsquid master --redis-host redis.mydomain.com
 ```
 
 ## Top
