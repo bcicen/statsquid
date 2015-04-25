@@ -15,6 +15,8 @@ class StatSquidTop(object):
                 'mem',
                 'net_rx',
                 'net_tx',
+                'io_read',
+                'io_write',
                 'source'
                 ]
         self.poll()
@@ -64,7 +66,9 @@ class StatSquidTop(object):
             s.addstr(3, 48, "MEM", curses.A_BOLD)
             s.addstr(3, 58, "NET TX", curses.A_BOLD)
             s.addstr(3, 68, "NET RX", curses.A_BOLD)
-            s.addstr(3, 78, "HOST", curses.A_BOLD)
+            s.addstr(3, 78, "READ IO", curses.A_BOLD)
+            s.addstr(3, 88, "WRITE IO", curses.A_BOLD)
+            s.addstr(3, 98, "HOST", curses.A_BOLD)
 
             #remainder of lines
             line = 5
@@ -76,7 +80,9 @@ class StatSquidTop(object):
                 s.addstr(line, 48, format_bytes(stats[cid]['mem']))
                 s.addstr(line, 58, format_bytes(stats[cid]['net_tx']))
                 s.addstr(line, 68, format_bytes(stats[cid]['net_rx']))
-                s.addstr(line, 78, stats[cid]['source'])
+                s.addstr(line, 78, format_bytes(stats[cid]['io_read']))
+                s.addstr(line, 88, format_bytes(stats[cid]['io_write']))
+                s.addstr(line, 98, stats[cid]['source'])
                 if line >= maxlines:
                     break
                 line += 1

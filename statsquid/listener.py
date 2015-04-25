@@ -21,6 +21,12 @@ class Stat(object):
         self.system_cpu = self.statdict['cpu_stats']['system_cpu_usage']
         self.cpu_count =  self.statdict['ncpu']
 
+        for s in self.statdict['blkio_stats']['io_service_bytes_recursive']:
+            if s['op'] == 'Read':
+                self.read_io = s['value']
+            if s['op'] == 'Write':
+                self.write_io = s['value']
+
     def _readtime(self,timestamp):
         #TODO: use time.strptime
         d,t = timestamp.split('T')

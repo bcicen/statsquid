@@ -34,18 +34,25 @@ class Container(object):
             self._set('name', stat.container_name)
 
         if len(self.stats) > 0:
-            cpu_percent = self._calculate_cpu_percentage(stat,self.stats[-1])
+            last_stat = self.stats[-1]
+
+            cpu_percent = self._calculate_cpu_percentage(stat,last_stat)
             self._set('cpu',round(cpu_percent,2))
-            rx,tx = self._calculate_net_delta(stat,self.stats[-1])
+
+            rx,tx = self._calculate_net_delta(stat,last_stat)
             self._set('net_rx', rx)
             self._set('net_tx', tx)
+
+            write,read = self._calculate_io_delta(stat,last_stat)
+            self._set('io_write', write)
+            self._set('io_read', read)
+
         self._set('mem',float(stat.statdict['memory_stats']['usage']))
         self._set('net_tx_bytes_total',float(stat.statdict['network']['tx_bytes']))
         self._set('net_rx_bytes_total',float(stat.statdict['network']['rx_bytes']))
         self._set('source',stat.statdict['source'])
-        #TODO: add io read/write metrics
-        #self._set('io_read_bytes',float(stat.statdict['io_service_bytes_recursive']['rx_bytes'])
-        #self._set('io_write_bytes',float(stat.statdict['io_service_bytes_recursive']['rx_bytes'])
+        self._set('io_read_total',stat.read_io)
+        self._set('io_write_total',stat.write_io)
 
         #TODO: utilize redis increment
         self._set('stats_read', int(self._get('stats_read')) + 1)
@@ -66,6 +73,16 @@ class Container(object):
     def _flush(self):
         del self.stats[:-1] # remove all but most recent stat
         log.debug('flush performed for container %s' % self.id)
+
+    def _calculate_io_delta(self,newstat,oldstat):
+        time_delta = newstat.timestamp - oldstat.timestamp
+        write_delta = newstat.write_io - oldstat.write_io
+        read_delta = newstat.read_io - oldstat.read_io
+        if time_delta.total_seconds() > 1:
+            write_delta = int(write_delta / time_delta.total_seconds())
+            read_delta = int(read_delta / time_delta.total_seconds())
+
+        return (write_delta,read_delta) 
 
     def _calculate_net_delta(self,newstat,oldstat):
         time_delta = newstat.timestamp - oldstat.timestamp
