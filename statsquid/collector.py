@@ -1,8 +1,9 @@
-import sys,json,logging
+import sys,json,logging,signal
 from time import sleep
 from docker import Client
 from redis import StrictRedis
 from multiprocessing import Process 
+from util import output
 
 log = logging.getLogger('statsquid')
 
@@ -22,11 +23,13 @@ class StatCollector(object):
         self.ncpu       = self.docker.info()['NCPU']
         self.redis      = StrictRedis(host=redis_host,port=redis_port,db=0)
         self.children   = []
+        self.stopped    = False
 
-        print('starting collector on source %s' % self.source)
+        output('starting collector on source %s' % self.source)
         self.start()
 
     def start(self):
+        signal.signal(signal.SIGINT, self._sig_handler)
         #start a collector for all existing containers
         for cid in [ c['Id'] for c in self.docker.containers() ]:
             self._add_collector(cid)
@@ -34,9 +37,8 @@ class StatCollector(object):
         #start event listener
         self._event_listener()
 
-    def _sig_handler(self,signal,frame):
-        print('caught %s, exiting' % signal)
-        self.stop()
+    def _sig_handler(self, signal, frame):
+        self.stopped = True
         sys.exit(0)
 
     def _event_listener(self):
@@ -44,7 +46,7 @@ class StatCollector(object):
         Listen for docker events and dynamically add or remove
         stat collectors based on start and die events
         """
-        log.info('starting event listener')
+        log.info('started event listener')
         for event in self.docker.events():
             event = json.loads(event)
             if event['status'] == 'start':
@@ -61,7 +63,7 @@ class StatCollector(object):
          - cname(str): Name of container
         """
         sleep(5) # sleep to allow container to fully start
-        log.info('starting collector for container %s' % cid)
+        output('started collector for container %s' % cid)
         stats = self.docker.stats(cid)
         for stat in stats:
             #append additional information to the returned stat
@@ -71,6 +73,8 @@ class StatCollector(object):
             s['source'] = self.source
             s['ncpu'] = self.ncpu
             self.redis.publish("stats",json.dumps(s))
+            if self.stopped:
+                break
     
     #####
     # collector methods

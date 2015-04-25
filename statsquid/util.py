@@ -17,3 +17,7 @@ def unix_time(dt):
     epoch = datetime.utcfromtimestamp(0)
     delta = dt - epoch
     return int(round(delta.total_seconds()))
+
+def output(msg):
+    #wrapper to append date to printed message
+    print('%s: %s' % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), msg))
