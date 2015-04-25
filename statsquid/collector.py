@@ -46,7 +46,7 @@ class StatCollector(object):
         Listen for docker events and dynamically add or remove
         stat collectors based on start and die events
         """
-        log.info('started event listener')
+        output('started event listener')
         for event in self.docker.events():
             event = json.loads(event)
             if event['status'] == 'start':
@@ -94,7 +94,7 @@ class StatCollector(object):
         c.terminate()
         while c.is_alive():
             sleep(.2)
-        log.info('collector stopped for container %s' % cid)
+        output('collector stopped for container %s' % cid)
         self.children = [ c for c in self.children if c.name != cid ]
 
     def _get_collector(self,cid):

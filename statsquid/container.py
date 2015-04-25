@@ -96,7 +96,7 @@ class Container(object):
         
     def _calculate_cpu_percentage(self,newstat,oldstat):
         """
-        Calculate the cpu usage in percentage form from two stats.
+        Calculate the cpu usage in percentage from two stats.
         """
         time_delta = newstat.timestamp - oldstat.timestamp
         sys_delta = newstat.system_cpu - oldstat.system_cpu
