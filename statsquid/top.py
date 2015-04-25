@@ -15,6 +15,8 @@ class StatSquidTop(object):
                 'mem',
                 'net_rx',
                 'net_tx',
+                'io_read',
+                'io_write',
                 'source'
                 ]
         self.poll()
