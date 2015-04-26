@@ -7,8 +7,8 @@ class Stat(object):
     """
     Stat object, created from json received from stat collector
     """
-    def __init__(self,stat_json):
-        self.__dict__ = jsontree.loads(stat_json)
+    def __init__(self,statdict):
+        self.__dict__ = jsontree.loads(json.dumps(statdict))
         self.timestamp = self._readtime(self.read)
         self.name = self.container_name.split('/')[-1]
         self.id = self.container_id.split('/')[-1]
