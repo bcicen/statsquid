@@ -1,14 +1,28 @@
-import json,logging,jsontree
+import logging
 from datetime import datetime,timedelta
 
 log = logging.getLogger('statsquid')
 
-class Stat(object):
+class AttrDict(dict):
+    __setattr__ = dict.__setitem__
+
+    def __getattr__(self, k):
+        v = self.__getitem__(k)
+        return v if not isinstance(v, dict) else AttrDict(v)
+
+    def __str__(self):
+        return str(dict(self.__dict__))
+
+    def __repr__(self):
+        return "AttrDict({})".format(repr(self.__dict__))
+
+
+class Stat(AttrDict):
     """
     Stat object, created from json received from stat collector
     """
     def __init__(self,statdict):
-        self.__dict__ = jsontree.loads(json.dumps(statdict))
+        super(Stat, self).__init__(statdict)
         self.timestamp = self._readtime(self.read)
         self.name = self.container_name.split('/')[-1]
         self.id = self.container_id.split('/')[-1]
