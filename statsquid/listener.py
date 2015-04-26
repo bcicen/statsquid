@@ -3,53 +3,9 @@ from datetime import datetime,timedelta
 from redis import StrictRedis
 from util import output
 from container import Container
+from stat import Stat
 
 log = logging.getLogger('statsquid')
-
-class Stat(object):
-    """
-    Stat object created from unpacked message received from collector
-    """
-    def __init__(self,statdict):
-        self.statdict = statdict
-        self.timestamp = self._readtime(self.statdict['read'])
-        self.container_name = self.statdict['container_name'].split('/')[-1]
-        self.container_id = self.statdict['container_id'].split('/')[-1]
-
-        self.container_cpu = self.statdict['cpu_stats']['cpu_usage']['total_usage']
-        self.system_cpu = self.statdict['cpu_stats']['system_cpu_usage']
-        self.cpu_count =  self.statdict['ncpu']
-
-        self.read_io = 0
-        self.write_io = 0
-        for s in self.statdict['blkio_stats']['io_service_bytes_recursive']:
-            if s['op'] == 'Read':
-                self.read_io = s['value']
-            if s['op'] == 'Write':
-                self.write_io = s['value']
-
-    def _readtime(self,timestamp):
-        #TODO: use time.strptime
-        d,t = timestamp.split('T')
-        year,month,day = d.split('-')
-        if '-' in t:
-            t,tz = t.split('-')
-            tz = tz
-        if '+' in t:
-            t,tz = t.split('-')
-            tz = '-' + tz
-        hour,minute,second = t.split(':')
-        second,microsecond = second.split('.')
-
-        ts = datetime(int(year),
-                      int(month),
-                      int(day),
-                      int(hour),
-                      int(minute),
-                      int(second),
-                      int(microsecond[0:6]))
-        ts = ts + timedelta(hours=int(tz.strip(':00')))
-        return ts
 
 class StatListener(object):
     """

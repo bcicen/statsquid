@@ -24,14 +24,14 @@ class Container(object):
         self.flush_interval = flush_interval
 
         #setup initial fields in redis 
-        self._set('id',container_id)
+        self._set('id',self.id)
         self._set('stats_read',0)
 
         self.stats = []
 
     def append_stat(self,stat):
         if not self._get('name'):
-            self._set('name', stat.container_name)
+            self._set('name', stat.name)
 
         if len(self.stats) > 0:
             last_stat = self.stats[-1]
@@ -47,12 +47,13 @@ class Container(object):
             self._set('io_write', write)
             self._set('io_read', read)
 
-        self._set('mem',float(stat.statdict['memory_stats']['usage']))
-        self._set('net_tx_bytes_total',float(stat.statdict['network']['tx_bytes']))
-        self._set('net_rx_bytes_total',float(stat.statdict['network']['rx_bytes']))
-        self._set('source',stat.statdict['source'])
-        self._set('io_read_total',stat.read_io)
-        self._set('io_write_total',stat.write_io)
+        self._set('mem',float(stat.memory_stats.usage))
+        self._set('net_tx_bytes_total',float(stat.network.tx_bytes))
+        self._set('net_rx_bytes_total',float(stat.network.rx_bytes))
+        self._set('source',stat.source)
+        read_io,write_io = self._get_rw_io(stat)
+        self._set('io_read_total',read_io)
+        self._set('io_write_total',write_io)
 
         #TODO: utilize redis increment
         self._set('stats_read', int(self._get('stats_read')) + 1)
@@ -74,10 +75,23 @@ class Container(object):
         del self.stats[:-1] # remove all but most recent stat
         log.debug('flush performed for container %s' % self.id)
 
+    def _get_rw_io(self,stat):
+        r,w = 0,0
+        for s in stat.blkio_stats.io_service_bytes_recursive:
+            if s['op'] == 'Read':
+                r = s['value']
+            if s['op'] == 'Write':
+                w = s['value']
+        return (r,w)
+
     def _calculate_io_delta(self,newstat,oldstat):
         time_delta = newstat.timestamp - oldstat.timestamp
-        write_delta = newstat.write_io - oldstat.write_io
-        read_delta = newstat.read_io - oldstat.read_io
+
+        oldstat_read,oldstat_write = self._get_rw_io(oldstat)
+        newstat_read,newstat_write = self._get_rw_io(newstat)
+
+        write_delta = newstat_write - oldstat_write
+        read_delta = newstat_read - oldstat_read
         if time_delta.total_seconds() > 1:
             write_delta = int(write_delta / time_delta.total_seconds())
             read_delta = int(read_delta / time_delta.total_seconds())
@@ -86,8 +100,8 @@ class Container(object):
 
     def _calculate_net_delta(self,newstat,oldstat):
         time_delta = newstat.timestamp - oldstat.timestamp
-        rx_delta = newstat.statdict['network']['rx_bytes'] - oldstat.statdict['network']['rx_bytes']
-        tx_delta = newstat.statdict['network']['tx_bytes'] - oldstat.statdict['network']['tx_bytes']
+        rx_delta = newstat.network.rx_bytes - oldstat.network.rx_bytes
+        tx_delta = newstat.network.tx_bytes - oldstat.network.tx_bytes
         if time_delta.total_seconds() > 1:
             rx_delta = rx_delta / time_delta.total_seconds()
             tx_delta = tx_delta / time_delta.total_seconds()
@@ -99,10 +113,13 @@ class Container(object):
         Calculate the cpu usage in percentage from two stats.
         """
         time_delta = newstat.timestamp - oldstat.timestamp
-        sys_delta = newstat.system_cpu - oldstat.system_cpu
-        container_delta = newstat.container_cpu - oldstat.container_cpu
+        sys_delta = newstat.cpu_stats.system_cpu_usage - \
+                        oldstat.cpu_stats.system_cpu_usage
+        container_delta = newstat.cpu_stats.cpu_usage.total_usage - \
+                            oldstat.cpu_stats.cpu_usage.total_usage
+
         if time_delta.total_seconds() > 1:
             sys_delta = sys_delta / time_delta.total_seconds()
             container_delta = container_delta / time_delta.total_seconds()
 
-        return (container_delta / sys_delta) * newstat.cpu_count * cpu_tick
+        return (container_delta / sys_delta) * newstat.ncpu * cpu_tick
