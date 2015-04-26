@@ -20,6 +20,6 @@ setup(name='statsquid',
       ),
       keywords='docker stats docker-py',
       entry_points = {
-        'console_scripts' : ['statsquid = statsquid.statsquid:main']
+        'console_scripts' : ['statsquid = statsquid.cli:main']
       }
 )
