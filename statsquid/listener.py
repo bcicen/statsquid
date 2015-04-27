@@ -1,7 +1,7 @@
 import logging,msgpack
 from datetime import datetime,timedelta
 from redis import StrictRedis
-from util import output
+from util import output,unix_time
 from container import Container
 from stat import Stat
 
@@ -15,10 +15,10 @@ class StatListener(object):
      - redis_host(str): redis host to connect to. default 127.0.0.1
      - redis_port(int): port to connect to redis host on. default 6379
     """
-    def __init__(self,redis_host='127.0.0.1',redis_port=6379,log_interval=60):
+    def __init__(self,redis_host='127.0.0.1',redis_port=6379):
         self.containers = {}
-        self.log_interval = log_interval
-        self.last_log = datetime.now()
+        self.maint_interval = 60
+        self.last_maint = datetime.now()
 
         self.redis = StrictRedis(host=redis_host,port=redis_port,db=0)
         self.sub = self.redis.pubsub(ignore_subscribe_messages=True)
@@ -32,17 +32,28 @@ class StatListener(object):
         for msg in self.sub.listen():
             self._process_msg(msgpack.unpackb(msg['data']))
             stat_count += 1
-            if self._is_log_interval():
+            if self._is_maint_interval():
                 output('processed %s stats in last %ss' % \
-                        (stat_count,self.log_interval))
+                        (stat_count,self.maint_interval))
                 stat_count = 0
+                self._flush_all()
 
-    def _is_log_interval(self):
-        diff_seconds = int((datetime.now() - self.last_log).total_seconds()) 
-        if diff_seconds >= self.log_interval:
-            self.last_log = datetime.now()
+    def _is_maint_interval(self):
+        diff_seconds = int((datetime.now() - self.last_maint).total_seconds()) 
+        if diff_seconds >= self.maint_interval:
+            self.last_maint = datetime.now()
             return True
         return False
+
+    def _flush_all(self):
+        now = unix_time(datetime.utcnow())
+        containers = self.containers.copy()
+        for cid,c in containers.iteritems():
+            c.flush()
+            if now - c.last_read > self.maint_interval:
+                c.delete()
+                del self.containers[cid]
+                log.debug('cleared stale container %s' % cid)
 
     def _process_msg(self,statdict):
         """
