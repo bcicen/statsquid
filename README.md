@@ -69,8 +69,7 @@ STATSQUID_REDIS_PORT
 
 # Improvements
 
-Statsquid is still an early stage project so there's quite a few things on wishlist:
+Statsquid is still an early stage project so there's quite a few things that can be improved:
 - Adding stat shipping plugin system to the master component(statsd,librato,etc.)
 - Add master-agent communication to stop or start following stats for specific containers
 - Improve roll-up of metrics for arbitrary time period averaging during flushing
-- Add cumulative and interval delta views to top component 
