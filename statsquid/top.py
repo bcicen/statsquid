@@ -3,6 +3,7 @@ from copy import deepcopy
 from datetime import datetime
 from redis import StrictRedis
 from curses.textpad import Textbox,rectangle
+from . import __version__
 from util import format_bytes,unix_time,convert_type
 
 class StatSquidTop(object):
@@ -64,6 +65,7 @@ class StatSquidTop(object):
     def display(self):
         s = curses.initscr()
         curses.noecho()
+        curses.curs_set(0)
         s.timeout(1000)
         s.border(0)
 
@@ -111,21 +113,40 @@ class StatSquidTop(object):
         if x == ord('q'):
             curses.endwin()
             sys.exit(0)
+
+        if x == ord('h') or x == ord('?'):
+            startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
+
+            s.addstr(10, startx+1, 'statsquid top version %s' % __version__)
+            s.addstr(12, startx+1, 's - toggle between cumulative and current view')
+            s.addstr(13, startx+1, 'f - filter by container name')
+            s.addstr(14, startx+1, 'h - show this help dialog')
+            s.addstr(15, startx+1, 'q - quit')
+
+            rectangle(s, 11,startx, 16,(startx+48))
+            s.refresh()
+            s.nodelay(0)
+            s.getch()
+            s.nodelay(1)
+            
         if x == ord('s'):
             self.sums = not self.sums
+
         if x == ord('f'):
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
 
-            s.addstr(10, startx, "String to filter for:")
+            s.addstr(10, startx, 'String to filter for:')
 
             editwin = curses.newwin(1,30, 12,(startx+1))
             rectangle(s, 11,startx, 13,(startx+31))
+            curses.curs_set(1) #make cursor visible in this box
             s.refresh()
 
             box = Textbox(editwin)
             box.edit()
 
             self.filter = str(box.gather()).strip(' ')
+            curses.curs_set(0)
 
     def _get_container(self,cid):
         """
