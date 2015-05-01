@@ -21,11 +21,11 @@ And run the statsquid top utility to view the streamed stats in real-time:
 docker run -ti --link statsquid_redis_1:redis bcicen/statsquid top --redis-host redis
 ```
 
-<p align="center">
-  <img src="http://i.imgur.com/5OfeDhV.gif" alt="Statsquid"/>
-</p>
+![top][top]
 
 # Components
+
+![diagram][diagram]
 
 ## Agent
 
@@ -73,3 +73,6 @@ Statsquid is still an early stage project so there's quite a few things that can
 - Adding stat shipping plugin system to the master component(statsd,librato,etc.)
 - Add master-agent communication to stop or start following stats for specific containers
 - Improve roll-up of metrics for arbitrary time period averaging during flushing
+
+[diagram]: http://i.imgur.com/3scUxxZl.png
+[top]: http://i.imgur.com/5OfeDhV.gif
