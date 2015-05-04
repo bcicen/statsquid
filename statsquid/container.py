@@ -43,10 +43,9 @@ class Container(object):
         self.current['io_read_bytes_total'] = read_io
         self.current['io_write_bytes_total'] = write_io
 
-        #TODO: utilize redis increment
-        self.current['stats_read'] += 1
-
+        self.redis.hincrby('stats_read', self.id, amount=1)
         self.redis.hmset(self.id,self.current)
+
         self.stats.append(stat)
 
     def flush(self):
