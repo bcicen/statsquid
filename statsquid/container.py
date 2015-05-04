@@ -20,7 +20,7 @@ class Container(object):
         self.id = container_id
         self.redis = redis
 
-        self.current = { 'id':self.id,'stats_read':0 }
+        self.current = { 'id':self.id }
 
         self.stats = []
 
@@ -43,7 +43,7 @@ class Container(object):
         self.current['io_read_bytes_total'] = read_io
         self.current['io_write_bytes_total'] = write_io
 
-        self.redis.hincrby('stats_read', self.id, amount=1)
+        self.redis.hincrby(self.id,'stats_read', amount=1)
         self.redis.hmset(self.id,self.current)
 
         self.stats.append(stat)
