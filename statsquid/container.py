@@ -7,21 +7,18 @@ cpu_tick = 100
 
 class Container(object):
     """
-    Container object holds a collection of stats for a specific container_id,
-    rolling up the data at regular intervals.
+    Container object holds a collection of stats for a specific container_id
     params:
      - container_id(str): Docker container id
      - redis(obj): Instance of a redis client object
-     - flush_interval: Optional. Number of stats to keep in memory before flush
     methods:
      - append_stat: Appends a new stat, recalculating averages
      params:
        - stat(obj): A statsquid.stat object
     """
-    def __init__(self,container_id,redis,flush_interval=60):
+    def __init__(self,container_id,redis):
         self.id = container_id
         self.redis = redis
-        self.flush_interval = flush_interval
 
         self.current = { 'id':self.id,'stats_read':0 }
 
