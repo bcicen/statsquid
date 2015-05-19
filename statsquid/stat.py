@@ -16,6 +16,8 @@ class AttrDict(dict):
     def __repr__(self):
         return "AttrDict({})".format(repr(self.__dict__))
 
+    def __getstate__(self):
+        return self.__dict__
 
 class Stat(AttrDict):
     """
@@ -23,9 +25,9 @@ class Stat(AttrDict):
     """
     def __init__(self,statdict):
         super(Stat, self).__init__(statdict)
+        self.id        = self.container_id.split('/')[-1]
+        self.name      = self.container_name.split('/')[-1]
         self.timestamp = self._readtime(self.read)
-        self.name = self.container_name.split('/')[-1]
-        self.id = self.container_id.split('/')[-1]
 
     def _readtime(self,timestamp):
         #TODO: use time.strptime
