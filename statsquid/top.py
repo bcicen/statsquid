@@ -26,6 +26,7 @@ class StatSquidTop(object):
             'io_read_bytes_total'  : float,
             'io_write_bytes_total' : float
         }
+        self.valid_filters = [ k for k,v in self.keys.iteritems() if v == str ]
 
         self.stats  = {}
         while True:
@@ -37,11 +38,8 @@ class StatSquidTop(object):
         sys.exit(0)
 
     def poll(self):
-        now = unix_time(datetime.utcnow())
-
         last_stats = deepcopy(self.stats)
         self.stats = {}
-        self.display_stats = {}
 
         #populate self.stats with all containers
         for cid in self.redis.keys():
@@ -49,18 +47,16 @@ class StatSquidTop(object):
             if container:
                 self.stats[cid] = container
 
-        #create display_stats 
-        for cid,stat in self.stats.iteritems():
-            if now - stat['last_read'] < 10:
-                self.display_stats[cid] = deepcopy(stat)
-
-        if not self.sums:
-            self.display_stats = self._diff_stats(self.display_stats,last_stats)
+        if self.sums:
+            self.display_stats = deepcopy(self.stats.values())
+        else:
+            self.display_stats = self._diff_stats(self.stats,last_stats)
 
         #TODO: add filtering for name, host, id based on "host:<str>" filter
         if self.filter:
-            self.display_stats = { k:v for k,v in self.display_stats.iteritems() \
-                      if self.filter in self.display_stats[k]['name'] }
+            ftype,fvalue = self.filter.split(':')
+            self.display_stats = [ s for s in self.display_stats \
+                                         if fvalue in s[ftype] ]
 
     def display(self):
         s = curses.initscr()
@@ -89,12 +85,12 @@ class StatSquidTop(object):
         s.addstr(3, 68, "NET RX", curses.A_BOLD)
         s.addstr(3, 78, "READ IO", curses.A_BOLD)
         s.addstr(3, 88, "WRITE IO", curses.A_BOLD)
-        s.addstr(3, 98, "HOST", curses.A_BOLD)
+        s.addstr(3, 98, "SOURCE", curses.A_BOLD)
 
         #remainder of lines
         line = 5
         maxlines = h - 2
-        for cid,stat in self.display_stats.iteritems():
+        for stat in self.display_stats:
             s.addstr(line, 2,  stat['name'][:20])
             s.addstr(line, 25, stat['id'][:12])
             s.addstr(line, 41, str(stat['cpu']))
@@ -115,15 +111,17 @@ class StatSquidTop(object):
             sys.exit(0)
 
         if x == ord('h') or x == ord('?'):
+            s.clear()
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
 
-            s.addstr(10, startx+1, 'statsquid top version %s' % __version__)
-            s.addstr(12, startx+1, 's - toggle between cumulative and current view')
-            s.addstr(13, startx+1, 'f - filter by container name')
-            s.addstr(14, startx+1, 'h - show this help dialog')
-            s.addstr(15, startx+1, 'q - quit')
+            s.addstr(6, startx+1, 'statsquid top version %s' % __version__)
+            s.addstr(8, startx+1, 's - toggle between cumulative and current view')
+            s.addstr(9, startx+1, 'f - filter by container name')
+            s.addstr(10, startx+5, '(e.g. source:localhost)')
+            s.addstr(11, startx+1, 'h - show this help dialog')
+            s.addstr(12, startx+1, 'q - quit')
 
-            rectangle(s, 11,startx, 16,(startx+48))
+            rectangle(s, 7,startx, 13,(startx+48))
             s.refresh()
             s.nodelay(0)
             s.getch()
@@ -147,28 +145,57 @@ class StatSquidTop(object):
 
             self.filter = str(box.gather()).strip(' ')
             curses.curs_set(0)
+            
+            #check if valid filter
+            if not self._validate_filter():
+                self.filter = None
+                s.clear()
+                s.addstr(6, startx+5, 'Invalid filter')
+                s.refresh()
+                curses.napms(800)
+
+    def _validate_filter(self):
+        if not self.filter:
+            return True
+
+        if ':' not in self.filter:
+            return False
+
+        ftype,fvalue = self.filter.split(':')
+        if ftype not in self.valid_filters:
+            return False
+
+        return True
 
     def _get_container(self,cid):
         """
         Fetch all fields in a hash key from redis, mapping to types defined
-        in self.keys. Return None if any keys are missing.
+        in self.keys. Return None if any keys are missing or last update
+        was > 10s ago.
         """
+        now = unix_time(datetime.utcnow())
         container = self.redis.hgetall(cid)
 
         if False in [container.has_key(k) for k in self.keys]:
             return None
 
-        return { k:convert_type(container[k],t) for \
+        stat = { k:convert_type(container[k],t) for \
                     k,t in self.keys.iteritems() }
 
-    def _diff_stats(self,stats,last_stats):
+        if now - stat['last_read'] > 10:
+            return None
+
+        return stat
+
+    def _diff_stats(self,new_stats,last_stats):
+        stats = deepcopy(new_stats)
         for cid in stats:
             if last_stats.has_key(cid):
                 stats[cid] = self._diff_cid(stats[cid],last_stats[cid])
             else:
                 stats[cid] = self._zero_stat(stats[cid])
         
-        return stats
+        return stats.values()
 
     def _zero_stat(self,stat):
         for k in [ k for k in self.keys if '_total' in k ]:
