@@ -37,11 +37,8 @@ class StatSquidTop(object):
         sys.exit(0)
 
     def poll(self):
-        now = unix_time(datetime.utcnow())
-
         last_stats = deepcopy(self.stats)
         self.stats = {}
-        self.display_stats = {}
 
         #populate self.stats with all containers
         for cid in self.redis.keys():
@@ -49,18 +46,15 @@ class StatSquidTop(object):
             if container:
                 self.stats[cid] = container
 
-        #create display_stats 
-        for cid,stat in self.stats.iteritems():
-            if now - stat['last_read'] < 10:
-                self.display_stats[cid] = deepcopy(stat)
-
-        if not self.sums:
-            self.display_stats = self._diff_stats(self.display_stats,last_stats)
+        if self.sums:
+            self.display_stats = deepcopy(self.stats.values())
+        else:
+            self.display_stats = self._diff_stats(self.stats,last_stats)
 
         #TODO: add filtering for name, host, id based on "host:<str>" filter
         if self.filter:
-            self.display_stats = { k:v for k,v in self.display_stats.iteritems() \
-                      if self.filter in self.display_stats[k]['name'] }
+            self.display_stats = [ s for s in self.display_stats \
+                                    if self.filter in s['name'] ]
 
     def display(self):
         s = curses.initscr()
@@ -94,7 +88,7 @@ class StatSquidTop(object):
         #remainder of lines
         line = 5
         maxlines = h - 2
-        for cid,stat in self.display_stats.iteritems():
+        for stat in self.display_stats:
             s.addstr(line, 2,  stat['name'][:20])
             s.addstr(line, 25, stat['id'][:12])
             s.addstr(line, 41, str(stat['cpu']))
@@ -151,24 +145,32 @@ class StatSquidTop(object):
     def _get_container(self,cid):
         """
         Fetch all fields in a hash key from redis, mapping to types defined
-        in self.keys. Return None if any keys are missing.
+        in self.keys. Return None if any keys are missing or last update
+        was > 10s ago.
         """
+        now = unix_time(datetime.utcnow())
         container = self.redis.hgetall(cid)
 
         if False in [container.has_key(k) for k in self.keys]:
             return None
 
-        return { k:convert_type(container[k],t) for \
+        stat = { k:convert_type(container[k],t) for \
                     k,t in self.keys.iteritems() }
 
-    def _diff_stats(self,stats,last_stats):
+        if now - stat['last_read'] > 10:
+            return None
+
+        return stat
+
+    def _diff_stats(self,new_stats,last_stats):
+        stats = deepcopy(new_stats)
         for cid in stats:
             if last_stats.has_key(cid):
                 stats[cid] = self._diff_cid(stats[cid],last_stats[cid])
             else:
                 stats[cid] = self._zero_stat(stats[cid])
         
-        return stats
+        return stats.values()
 
     def _zero_stat(self,stat):
         for k in [ k for k in self.keys if '_total' in k ]:
