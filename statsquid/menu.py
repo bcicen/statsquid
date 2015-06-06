@@ -49,12 +49,12 @@ def run_menu(menu_items,x=0,y=0,name=None,border=True):
             current_opt -= 1
 
         #validation can be done by CR or space bar
-        elif x == ord('\n') or a == 32 :
+        elif x == ord('\n') or x == 32 :
             selected_opt = current_opt
 
         #in case key pressed is a number
         elif x in range(ord('0'),ord('0')+height):
-            current_opt=a-ord('0')
+            current_opt = x - ord('0')
             selected_opt=current_opt
 
         if current_opt > len(menu_items) - 1:
