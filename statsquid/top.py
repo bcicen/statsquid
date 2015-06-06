@@ -144,8 +144,12 @@ class StatSquidTop(object):
 
         if x == ord('s'):
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
+
+            #format field names for readable output
             opts = self.keys.keys()
-            selected = menu.run_menu(tuple(opts),x=startx,y=6,name="sort")
+            fmt_opts = [k.replace('_',' ').replace('total','') for k in opts]
+
+            selected = menu.run_menu(tuple(fmt_opts),x=startx,y=6,name="sort")
             self.sort['key'] = opts[selected]
 
         if x == ord('f'):
