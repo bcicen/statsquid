@@ -124,6 +124,7 @@ class StatSquidTop(object):
             s.addstr(6, startx+1, 'statsquid top version %s' % __version__)
             s.addstr(8, startx+1, 'c - toggle between cumulative and current view')
             s.addstr(9, startx+1, 's - select sort field')
+            s.addstr(9, startx+1, 'r - reverse sort order')
             s.addstr(10, startx+1, 'f - filter by container name')
             s.addstr(11, startx+5, '(e.g. source:localhost)')
             s.addstr(12, startx+1, 'h - show this help dialog')
@@ -138,6 +139,9 @@ class StatSquidTop(object):
         if x == ord('c'):
             self.sums = not self.sums
 
+        if x == ord('r'):
+            self.sort['reversed'] = not self.sort['reversed']
+
         if x == ord('s'):
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
             opts = self.keys.keys()
@@ -147,7 +151,7 @@ class StatSquidTop(object):
         if x == ord('f'):
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
 
-            s.addstr(10, startx, 'String to filter for:')
+            s.addstr(6, startx, 'String to filter for:')
 
             editwin = curses.newwin(1,30, 12,(startx+1))
             rectangle(s, 11,startx, 13,(startx+31))
