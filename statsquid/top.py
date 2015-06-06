@@ -5,13 +5,17 @@ from redis import StrictRedis
 from curses.textpad import Textbox,rectangle
 from . import __version__
 from util import format_bytes,unix_time,convert_type
+import menu
 
 class StatSquidTop(object):
-    def __init__(self,redis_host='127.0.0.1',redis_port=6379,filter=None):
+    def __init__(self,redis_host='127.0.0.1',redis_port=6379,
+                 filter=None,sort_key=None):
         self.redis  = StrictRedis(host=redis_host,port=redis_port)
 
+        #set initial display options
+        self.sums = False
         self.filter = filter
-        self.sums   = False
+        self.sort = { 'key': sort_key, 'reversed': True }
 
         self.keys   = {
             'name'   : str,
@@ -26,7 +30,7 @@ class StatSquidTop(object):
             'io_read_bytes_total'  : float,
             'io_write_bytes_total' : float
         }
-        self.valid_filters = [ k for k,v in self.keys.iteritems() if v == str ]
+        self.valid_filters = [k for k,v in self.keys.iteritems() if v == str]
 
         self.stats  = {}
         while True:
@@ -51,6 +55,10 @@ class StatSquidTop(object):
             self.display_stats = deepcopy(self.stats.values())
         else:
             self.display_stats = self._diff_stats(self.stats,last_stats)
+
+        if self.sort['key']:
+            self.display_stats = sorted(self.display_stats,
+                    key=self._sorter,reverse=self.sort['reversed'])
 
         if self.filter:
             ftype,fvalue = self.filter.split(':')
@@ -114,25 +122,36 @@ class StatSquidTop(object):
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
 
             s.addstr(6, startx+1, 'statsquid top version %s' % __version__)
-            s.addstr(8, startx+1, 's - toggle between cumulative and current view')
-            s.addstr(9, startx+1, 'f - filter by container name,source,id')
-            s.addstr(10, startx+5, '(e.g. source:localhost)')
-            s.addstr(11, startx+1, 'h - show this help dialog')
-            s.addstr(12, startx+1, 'q - quit')
+            s.addstr(8, startx+1, 'c - toggle between cumulative and current view')
+            s.addstr(9, startx+1, 's - select sort field')
+            s.addstr(9, startx+1, 'r - reverse sort order')
+            s.addstr(10, startx+1, 'f - filter by container name')
+            s.addstr(11, startx+5, '(e.g. source:localhost)')
+            s.addstr(12, startx+1, 'h - show this help dialog')
+            s.addstr(13, startx+1, 'q - quit')
 
-            rectangle(s, 7,startx, 13,(startx+48))
+            rectangle(s, 7,startx, 14,(startx+48))
             s.refresh()
             s.nodelay(0)
             s.getch()
             s.nodelay(1)
             
-        if x == ord('s'):
+        if x == ord('c'):
             self.sums = not self.sums
+
+        if x == ord('r'):
+            self.sort['reversed'] = not self.sort['reversed']
+
+        if x == ord('s'):
+            startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
+            opts = self.keys.keys()
+            selected = menu.run_menu(tuple(opts),x=startx,y=6,name="sort")
+            self.sort['key'] = opts[selected]
 
         if x == ord('f'):
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
 
-            s.addstr(10, startx, 'String to filter for:')
+            s.addstr(6, startx, 'String to filter for:')
 
             editwin = curses.newwin(1,30, 12,(startx+1))
             rectangle(s, 11,startx, 13,(startx+31))
@@ -152,6 +171,10 @@ class StatSquidTop(object):
                 s.addstr(6, startx+5, 'Invalid filter')
                 s.refresh()
                 curses.napms(800)
+
+
+    def _sorter(self,d):
+        return d[self.sort['key']]
 
     def _validate_filter(self):
         if not self.filter:
