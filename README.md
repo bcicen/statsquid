@@ -48,6 +48,8 @@ Statsquid comes with a curses-based top utility that can be used to view the agg
 docker run -ti bcicen/statsquid top --redis-host redis.mydomain.com
 ```
 
+Statsquid top supports filtering by host and container name/id, sorting by field, and cumulative vs incremental views. Hit 'h' for a full list of features.
+
 # Options
 
 Statsquid supports the following options:
@@ -70,7 +72,6 @@ STATSQUID_REDIS_PORT
 # Improvements
 
 Statsquid is still an early stage project so there's quite a few things that can be improved:
-- Adding stat shipping plugin system to the master component(statsd,librato,etc.)
 - Add master-agent communication to stop or start following stats for specific containers
 - Improve roll-up of metrics for arbitrary time period averaging during flushing
 
