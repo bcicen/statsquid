@@ -9,18 +9,13 @@ log = logging.getLogger('statsquid')
 
 def main():
     envvars = { 'STATSQUID_REDIS_HOST' : 'redis_host',
-                'STATSQUID_REDIS_PORT' : 'redis_port',
                 'DOCKER_HOST'          : 'docker_host' }
 
     common_parser = ArgumentParser(add_help=False)
     common_parser.add_argument('--redis-host',
                         dest='redis_host',
-                        help='redis host to connect to (127.0.0.1)',
-                        default='127.0.0.1')
-    common_parser.add_argument('--redis-port',
-                        dest='redis_port',
-                        help='redis port to connect on (6379)',
-                        default='6379')
+                        help='redis host to connect to (127.0.0.1:6379)',
+                        default='127.0.0.1:6379')
 
     parser = ArgumentParser(description='statsquid %s' % (__version__))
     subparsers = parser.add_subparsers(description='statsquid subcommands',
@@ -44,17 +39,22 @@ def main():
     [ args.__setattr__(v,os.getenv(k)) for k,v \
             in envvars.iteritems() if os.getenv(k) ]
 
+    if ':' in args.redis_host:
+        redis_host,redis_port = args.redis_host.split(':')
+    else:
+        redis_host = args.redis_host
+        redis_port = 6379
+
     if args.subcommand == 'top':
-        StatSquidTop(redis_host=args.redis_host,redis_port=args.redis_port)
+        StatSquidTop(redis_host=redis_host,redis_port=redis_port)
 
     if args.subcommand == 'master':
-        s = StatListener(redis_host=args.redis_host,
-                         redis_port=args.redis_port)
+        s = StatListener(redis_host=redis_host,redis_port=redis_port)
 
     if args.subcommand == 'agent':
         s = StatCollector(args.docker_host,
-                          redis_host=args.redis_host,
-                          redis_port=args.redis_port)
+                          redis_host=redis_host,
+                          redis_port=redis_port)
 
 if __name__ == '__main__':
     main()
