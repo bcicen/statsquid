@@ -12,8 +12,8 @@ def main():
                 'DOCKER_HOST'          : 'docker_host' }
 
     common_parser = ArgumentParser(add_help=False)
-    common_parser.add_argument('--redis-host',
-                        dest='redis_host',
+    common_parser.add_argument('--redis',
+                        dest='redis',
                         help='redis host to connect to (127.0.0.1:6379)',
                         default='127.0.0.1:6379')
 
@@ -39,10 +39,10 @@ def main():
     [ args.__setattr__(v,os.getenv(k)) for k,v \
             in envvars.iteritems() if os.getenv(k) ]
 
-    if ':' in args.redis_host:
-        redis_host,redis_port = args.redis_host.split(':')
+    if ':' in args.redis:
+        redis_host,redis_port = args.redis.split(':')
     else:
-        redis_host = args.redis_host
+        redis_host = args.redis
         redis_port = 6379
 
     if args.subcommand == 'top':
