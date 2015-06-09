@@ -8,8 +8,8 @@ from collector import StatCollector
 log = logging.getLogger('statsquid')
 
 def main():
-    envvars = { 'STATSQUID_REDIS_HOST' : 'redis_host',
-                'DOCKER_HOST'          : 'docker_host' }
+    envvars = { 'STATSQUID_REDIS' : 'redis_host',
+                'DOCKER_HOST'     : 'docker_host' }
 
     common_parser = ArgumentParser(add_help=False)
     common_parser.add_argument('--redis',
