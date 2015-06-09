@@ -18,7 +18,7 @@ docker-compose up
 
 And run the statsquid top utility to view the streamed stats in real-time:
 ```bash
-docker run -ti --link statsquid_redis_1:redis bcicen/statsquid top --redis-host redis
+docker run -ti --link statsquid_redis_1:redis bcicen/statsquid top --redis redis
 ```
 
 ![top][top]
@@ -31,21 +31,21 @@ docker run -ti --link statsquid_redis_1:redis bcicen/statsquid top --redis-host 
 
 A single statsquid agent can be started on every Docker host you wish to collect stats from by running:
 ```bash
-docker run -td -v /var/run/docker.sock:/var/run/docker.sock bcicen/statsquid agent --redis-host redis.mydomain.com
+docker run -td -v /var/run/docker.sock:/var/run/docker.sock bcicen/statsquid agent --redis redis.mydomain.com
 ```
 
 ## Master
 
 A statquid master connects to the common redis instance and listens for new stats, storing them for persistence
 ```bash
-docker run -td bcicen/statsquid master --redis-host redis.mydomain.com
+docker run -td bcicen/statsquid master --redis redis.mydomain.com
 ```
 
 ## Top
 
 Statsquid comes with a curses-based top utility that can be used to view the aggregated stats in real time.
 ```bash
-docker run -ti bcicen/statsquid top --redis-host redis.mydomain.com
+docker run -ti bcicen/statsquid top --redis redis.mydomain.com
 ```
 
 Statsquid top supports filtering by host and container name/id, sorting by field, and cumulative vs incremental views. Hit 'h' for a full list of features.
@@ -57,16 +57,13 @@ Statsquid supports the following options:
   --docker-host DOCKER_HOST
                         docker host to connect to (default:
                         /var/run/docker.sock) (agent only)
-  --redis-host REDIS_HOST
+  --redis REDIS_HOST
                         redis host to connect to (default: 127.0.0.1)
-  --redis-port REDIS_PORT
-                        redis port to connect on (default: 6379)
 ```
 Likewise, any of the below environmental variables will supersede its equivalent command line option:
 ```
 DOCKER_HOST
-STATSQUID_REDIS_HOST
-STATSQUID_REDIS_PORT
+STATSQUID_REDIS
 ```
 
 # Improvements
