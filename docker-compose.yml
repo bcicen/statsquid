@@ -6,7 +6,7 @@ agent:
   volumes:
     - /var/run/docker.sock:/var/run/docker.sock
   environment:
-    STATSQUID_REDIS_HOST: "redis"
+    STATSQUID_REDIS: "redis"
 
 master:
   image: bcicen/statsquid:latest
@@ -14,7 +14,7 @@ master:
   links:
     - redis:redis
   environment:
-    STATSQUID_REDIS_HOST: "redis"
+    STATSQUID_REDIS: "redis"
 
 redis:
   image: redis:2.8
