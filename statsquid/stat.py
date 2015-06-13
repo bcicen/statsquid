@@ -33,12 +33,16 @@ class Stat(AttrDict):
         #TODO: use time.strptime
         d,t = timestamp.split('T')
         year,month,day = d.split('-')
+
         if '-' in t:
             t,tz = t.split('-')
             tz = tz
-        if '+' in t:
+        elif '+' in t:
             t,tz = t.split('-')
             tz = '-' + tz
+        else:
+            tz = None
+
         hour,minute,second = t.split(':')
         second,microsecond = second.split('.')
 
@@ -49,5 +53,7 @@ class Stat(AttrDict):
                       int(minute),
                       int(second),
                       int(microsecond[0:6]))
-        ts = ts + timedelta(hours=int(tz.strip(':00')))
+        if tz:
+            ts = ts + timedelta(hours=int(tz.strip(':00')))
+
         return ts
