@@ -46,13 +46,16 @@ class Stat(AttrDict):
         hour,minute,second = t.split(':')
         second,microsecond = second.split('.')
 
-        ts = datetime(int(year),
-                      int(month),
-                      int(day),
-                      int(hour),
-                      int(minute),
-                      int(second),
-                      int(microsecond[0:6]))
+        ts = datetime(
+                int(year),
+                int(month),
+                int(day),
+                int(hour),
+                int(minute),
+                int(second),
+                int(microsecond[0:6].strip('Z'))
+             )
+
         if tz:
             ts = ts + timedelta(hours=int(tz.strip(':00')))
 
