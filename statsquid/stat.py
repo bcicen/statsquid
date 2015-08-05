@@ -21,7 +21,7 @@ class AttrDict(dict):
 
 class Stat(AttrDict):
     """
-    Stat object, created from json received from stat collector
+    Stat object, created from json received from agent
     """
     def __init__(self,statdict):
         super(Stat, self).__init__(statdict)

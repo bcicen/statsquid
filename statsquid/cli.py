@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from . import __version__
 from top import StatSquidTop
 from listener import StatListener
-from collector import StatCollector
+from agent import Agent
 
 log = logging.getLogger('statsquid')
 
@@ -52,9 +52,9 @@ def main():
         s = StatListener(redis_host=redis_host,redis_port=redis_port)
 
     if args.subcommand == 'agent':
-        s = StatCollector(args.docker_host,
-                          redis_host=redis_host,
-                          redis_port=redis_port)
+        s = Agent(args.docker_host,
+                  redis_host=redis_host,
+                  redis_port=redis_port)
 
 if __name__ == '__main__':
     main()

@@ -7,7 +7,7 @@ from util import output
 
 log = logging.getLogger('statsquid')
 
-class StatCollector(object):
+class Agent(object):
     """
     Collects stats from all containers on a single Docker host, appending
     container name and id fields and publishing to redis
