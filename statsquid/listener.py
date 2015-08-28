@@ -22,7 +22,9 @@ class StatListener(object):
         self.maint_interval = 60
         self.last_maint = datetime.now()
 
-        self.redis = StrictRedis(host=redis_host,port=redis_port,db=0)
+        self.redis = StrictRedis(host=redis_host,
+                                 port=redis_port,
+                                 decode_responses=True)
         self.sub = self.redis.pubsub(ignore_subscribe_messages=True)
         self.sub.subscribe('stats')
 
@@ -32,7 +34,7 @@ class StatListener(object):
         stat_count = 0
         output('listener started')
         for msg in self.sub.listen():
-            self._process_msg(msgpack.unpackb(msg['data']))
+            self._process_msg(msg['data'])
             stat_count += 1
             if self._is_maint_interval():
                 output('processed %s stats in last %ss' % \
@@ -57,14 +59,19 @@ class StatListener(object):
                 del self.containers[cid]
                 log.debug('cleared stale container %s' % cid)
 
-    def _process_msg(self,statdict):
+    def _process_msg(self, data):
         """
-        message handler
+        Message handler
         """
-        stat = Stat(statdict)
+        stat = Stat(self._unpack(data))
         cid = stat.container_id
         if cid not in self.containers:
             #create a new container object to track stats if we haven't
             #seen this container before
             self.containers[cid] = Container(cid,self.redis)
         self.containers[cid].append_stat(stat)
+
+    @staticmethod
+    def _unpack(data):
+        d = msgpack.unpackb(data)
+        return d.decode('utf-8')

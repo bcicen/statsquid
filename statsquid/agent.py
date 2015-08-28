@@ -70,15 +70,14 @@ class Agent(object):
         """
         sleep(5) # sleep to allow container to fully start
         output('started collector for container %s' % cid)
-        stats = self.docker.stats(cid)
+        stats = self.docker.stats(cid, decode=True)
         for stat in stats:
             #append additional information to the returned stat
-            s = json.loads(stat.decode('utf-8'))
-            s['container_name'] = cname
-            s['container_id'] = cid
-            s['source'] = self.source
-            s['ncpu'] = self.ncpu
-            self.redis.publish("stats",msgpack.packb(s))
+            stat['container_name'] = cname
+            stat['container_id'] = cid
+            stat['source'] = self.source
+            stat['ncpu'] = self.ncpu
+            self.redis.publish('stats', msgpack.packb(json.dumps(stat)))
             if self.stopped:
                 break
     
