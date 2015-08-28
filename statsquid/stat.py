@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import datetime,timedelta
 
@@ -22,10 +21,10 @@ class AttrDict(dict):
 
 class Stat(AttrDict):
     """
-    Stat object, created from json received from agent
+    Stat object, created from stat dictionary received from agent
     """
-    def __init__(self, statjson):
-        super(Stat, self).__init__(json.loads(statjson))
+    def __init__(self, statdict):
+        super(Stat, self).__init__(statdict)
         self.id        = self.container_id.split('/')[-1]
         self.name      = self.container_name.split('/')[-1]
         self.timestamp = self._readtime(self.read)
