@@ -1,9 +1,12 @@
-import os,sys,logging
+import os
+import sys
+import logging
 from argparse import ArgumentParser
-from . import __version__
-from top import StatSquidTop
-from listener import StatListener
-from agent import Agent
+
+from statsquid.version import version
+from statsquid.agent import Agent
+from statsquid.top import StatSquidTop
+from statsquid.listener import StatListener
 
 log = logging.getLogger('statsquid')
 
@@ -17,7 +20,7 @@ def main():
                         help='redis host to connect to (127.0.0.1:6379)',
                         default='127.0.0.1:6379')
 
-    parser = ArgumentParser(description='statsquid %s' % (__version__))
+    parser = ArgumentParser(description='statsquid %s' % (version))
     subparsers = parser.add_subparsers(description='statsquid subcommands',
                                        dest='subcommand')
 
@@ -37,7 +40,7 @@ def main():
     args = parser.parse_args()
     #override command line with env vars
     [ args.__setattr__(v,os.getenv(k)) for k,v \
-            in envvars.iteritems() if os.getenv(k) ]
+            in envvars.items() if os.getenv(k) ]
 
     if ':' in args.redis:
         redis_host,redis_port = args.redis.split(':')

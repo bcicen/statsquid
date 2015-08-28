@@ -1,9 +1,11 @@
-import logging,msgpack
+import logging
+import msgpack
 from datetime import datetime,timedelta
 from redis import StrictRedis
-from util import output,unix_time
-from container import Container
-from stat import Stat
+
+from statsquid.stat import Stat
+from statsquid.container import Container
+from statsquid.util import output,unix_time
 
 log = logging.getLogger('statsquid')
 
@@ -48,7 +50,7 @@ class StatListener(object):
     def _flush_all(self):
         now = unix_time(datetime.utcnow())
         containers = self.containers.copy()
-        for cid,c in containers.iteritems():
+        for cid,c in containers.items():
             c.flush()
             if now - c.last_read > self.maint_interval:
                 c.delete()

@@ -1,16 +1,22 @@
-import os,sys,signal,curses
+import os
+import sys
+import signal
+import curses
 from copy import deepcopy
 from datetime import datetime
 from redis import StrictRedis
 from curses.textpad import Textbox,rectangle
-from . import __version__
-from util import format_bytes,unix_time,convert_type
-import menu
+
+from statsquid.menu import run_menu
+from statsquid.version import version
+from statsquid.util import format_bytes, unix_time, convert_type
 
 class StatSquidTop(object):
     def __init__(self,redis_host='127.0.0.1',redis_port=6379,
                  filter=None,sort_key=None):
-        self.redis  = StrictRedis(host=redis_host,port=redis_port)
+        self.redis  = StrictRedis(host=redis_host,
+                                  port=redis_port,
+                                  decode_responses=True)
 
         #set initial display options
         self.sums = False
@@ -30,7 +36,7 @@ class StatSquidTop(object):
             'io_read_bytes_total'  : float,
             'io_write_bytes_total' : float
         }
-        self.valid_filters = [k for k,v in self.keys.iteritems() if v == str]
+        self.valid_filters = [k for k,v in self.keys.items() if v == str]
 
         self.stats  = {}
         while True:
@@ -46,13 +52,13 @@ class StatSquidTop(object):
         self.stats = {}
 
         #populate self.stats with all containers
-        for cid in self.redis.keys():
+        for cid in list(self.redis.keys()):
             container = self._get_container(cid)
             if container:
                 self.stats[cid] = container
 
         if self.sums:
-            self.display_stats = deepcopy(self.stats.values())
+            self.display_stats = deepcopy(list(self.stats.values()))
         else:
             self.display_stats = self._diff_stats(self.stats,last_stats)
 
@@ -121,7 +127,7 @@ class StatSquidTop(object):
             s.clear()
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
 
-            s.addstr(6, startx+1, 'statsquid top version %s' % __version__)
+            s.addstr(6, startx+1, 'statsquid top version %s' % version)
             s.addstr(8, startx+1, 'c - toggle between cumulative and current view')
             s.addstr(9, startx+1, 's - select sort field')
             s.addstr(9, startx+1, 'r - reverse sort order')
@@ -146,10 +152,10 @@ class StatSquidTop(object):
             startx = w / 2 - 20 # I have no idea why this offset of 20 is needed
 
             #format field names for readable output
-            opts = self.keys.keys()
+            opts = list(self.keys.keys())
             fmt_opts = [k.replace('_',' ').replace('total','') for k in opts]
 
-            selected = menu.run_menu(tuple(fmt_opts),x=startx,y=6,name="sort")
+            selected = run_menu(tuple(fmt_opts),x=startx,y=6,name="sort")
             self.sort['key'] = opts[selected]
 
         if x == ord('f'):
@@ -202,11 +208,11 @@ class StatSquidTop(object):
         now = unix_time(datetime.utcnow())
         container = self.redis.hgetall(cid)
 
-        if False in [container.has_key(k) for k in self.keys]:
+        if False in [k in container for k in self.keys]:
             return None
 
         stat = { k:convert_type(container[k],t) for \
-                    k,t in self.keys.iteritems() }
+                    k,t in self.keys.items() }
 
         if now - stat['last_read'] > 10:
             return None
@@ -216,12 +222,12 @@ class StatSquidTop(object):
     def _diff_stats(self,new_stats,last_stats):
         stats = deepcopy(new_stats)
         for cid in stats:
-            if last_stats.has_key(cid):
+            if cid in last_stats:
                 stats[cid] = self._diff_cid(stats[cid],last_stats[cid])
             else:
                 stats[cid] = self._zero_stat(stats[cid])
         
-        return stats.values()
+        return list(stats.values())
 
     def _zero_stat(self,stat):
         for k in [ k for k in self.keys if '_total' in k ]:
@@ -232,12 +238,12 @@ class StatSquidTop(object):
         time_delta = stat['last_read'] - last_stat['last_read']
         diffdict = { k:(last_stat[k],stat[k],time_delta) for \
                         k in self.keys if '_total' in k }
-        for k,v in diffdict.iteritems():
-            stat[k] = self._get_delta(v)
+        for k,v in diffdict.items():
+            stat[k] = self._get_delta(*v)
 
         return stat
 
-    def _get_delta(self,(old,new,elapsed)):
+    def _get_delta(self,old,new,elapsed):
         delta = new - old
         if elapsed > 1 and delta != 0:
             return int(round(delta / elapsed))

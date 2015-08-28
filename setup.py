@@ -1,8 +1,9 @@
 from setuptools import setup
-from statsquid import __version__
+
+exec(open('statsquid/version.py').read())
 
 setup(name='statsquid',
-      version=__version__,
+      version=version,
       packages=['statsquid'],
       description='Docker container stats aggregator',
       author='Bradley Cicenas',

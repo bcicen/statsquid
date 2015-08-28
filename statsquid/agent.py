@@ -1,9 +1,14 @@
-import sys,json,logging,signal,msgpack
+import sys
+import json
+import logging
+import signal
+import msgpack
 from time import sleep
 from docker import Client
 from redis import StrictRedis
 from multiprocessing import Process 
-from util import output
+
+from statsquid.util import output
 
 log = logging.getLogger('statsquid')
 
@@ -25,6 +30,7 @@ class Agent(object):
         self.children   = []
         self.stopped    = False
 
+        log.info('Connected to Docker API at url %s' % docker_host)
         output('starting collector on source %s' % self.source)
         self.start()
 
@@ -48,7 +54,7 @@ class Agent(object):
         """
         output('started event listener')
         for event in self.docker.events():
-            event = json.loads(event)
+            event = json.loads(event.decode('utf-8'))
             if event['status'] == 'start':
                 self._add_collector(event['id'])
             if event['status'] == 'die':
@@ -67,7 +73,7 @@ class Agent(object):
         stats = self.docker.stats(cid)
         for stat in stats:
             #append additional information to the returned stat
-            s = json.loads(stat)
+            s = json.loads(stat.decode('utf-8'))
             s['container_name'] = cname
             s['container_id'] = cid
             s['source'] = self.source
