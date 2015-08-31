@@ -1,8 +1,9 @@
 from setuptools import setup
-from statsquid import __version__
+
+exec(open('statsquid/version.py').read())
 
 setup(name='statsquid',
-      version=__version__,
+      version=version,
       packages=['statsquid'],
       description='Docker container stats aggregator',
       author='Bradley Cicenas',
@@ -15,8 +16,8 @@ setup(name='statsquid',
           'License :: OSI Approved :: MIT License ',
           'Natural Language :: English',
           'Programming Language :: Python',
-          'Programming Language :: Python :: 2.6',
           'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3.4',
       ),
       keywords='docker stats docker-py',
       entry_points = {

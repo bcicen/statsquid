@@ -1,5 +1,7 @@
-import logging,json
-from util import unix_time
+import logging
+import json
+
+from statsquid.util import unix_time
 
 log = logging.getLogger('statsquid')
 

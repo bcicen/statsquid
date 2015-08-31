@@ -21,9 +21,9 @@ class AttrDict(dict):
 
 class Stat(AttrDict):
     """
-    Stat object, created from json received from agent
+    Stat object, created from stat dictionary received from agent
     """
-    def __init__(self,statdict):
+    def __init__(self, statdict):
         super(Stat, self).__init__(statdict)
         self.id        = self.container_id.split('/')[-1]
         self.name      = self.container_name.split('/')[-1]
