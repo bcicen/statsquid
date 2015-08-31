@@ -26,7 +26,7 @@ class StatListener(object):
                                  port=redis_port,
                                  decode_responses=True)
         self.sub = self.redis.pubsub(ignore_subscribe_messages=True)
-        self.sub.subscribe('stats')
+        self.sub.subscribe('statsquid')
 
         self.run_forever()
 
@@ -68,7 +68,7 @@ class StatListener(object):
         if cid not in self.containers:
             #create a new container object to track stats if we haven't
             #seen this container before
-            self.containers[cid] = Container(cid,self.redis)
+            self.containers[cid] = Container(cid, self.redis)
         self.containers[cid].append_stat(stat)
 
     @staticmethod

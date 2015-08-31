@@ -77,7 +77,7 @@ class Agent(object):
             stat['container_id'] = cid
             stat['source'] = self.source
             stat['ncpu'] = self.ncpu
-            self.redis.publish('stats', msgpack.packb(stat))
+            self.redis.publish('statsquid', msgpack.packb(stat))
             if self.stopped:
                 break
     

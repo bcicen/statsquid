@@ -2,10 +2,9 @@ import logging
 import json
 
 from statsquid.util import unix_time
+from statsquid import key_prefix
 
 log = logging.getLogger('statsquid')
-
-cpu_tick = 100
 
 class Container(object):
     """
@@ -18,8 +17,9 @@ class Container(object):
      params:
        - stat(obj): A statsquid.stat object
     """
-    def __init__(self,container_id,redis):
+    def __init__(self, container_id, redis):
         self.id = container_id
+        self.key = key_prefix + ':' + self.id
         self.redis = redis
 
         self.current = { 'id':self.id }
@@ -45,8 +45,8 @@ class Container(object):
         self.current['io_read_bytes_total'] = read_io
         self.current['io_write_bytes_total'] = write_io
 
-        self.redis.hincrby(self.id,'stats_read', amount=1)
-        self.redis.hmset(self.id,self.current)
+        self.redis.hincrby(self.key, 'stats_read', amount=1)
+        self.redis.hmset(self.key, self.current)
 
         self.stats.append(stat)
 
@@ -55,7 +55,7 @@ class Container(object):
         log.debug('flush performed for container %s' % self.id)
 
     def delete(self):
-        self.redis.delete(self.id)
+        self.redis.delete(self.key)
 
     def _get_rw_io(self,stat):
         r,w = 0,0
@@ -65,11 +65,14 @@ class Container(object):
             if s['op'] == 'Write':
                 w = s['value']
         return (r,w)
-        
-    def _calculate_cpu(self,newstat,oldstat):
+
+    @staticmethod
+    def _calculate_cpu(newstat, oldstat):
         """
         Calculate the cpu usage in percentage from two stats.
         """
+        cpu_tick = 100
+
         time_delta = newstat.timestamp - oldstat.timestamp
         sys_delta = newstat.cpu_stats.system_cpu_usage - \
                         oldstat.cpu_stats.system_cpu_usage

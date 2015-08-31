@@ -7,6 +7,7 @@ from datetime import datetime
 from redis import StrictRedis
 from curses.textpad import Textbox,rectangle
 
+from statsquid import key_prefix
 from statsquid.menu import run_menu
 from statsquid.version import version
 from statsquid.util import format_bytes, unix_time, convert_type
@@ -52,10 +53,10 @@ class StatSquidTop(object):
         self.stats = {}
 
         #populate self.stats with all containers
-        for cid in list(self.redis.keys()):
-            container = self._get_container(cid)
+        for key in list(self.redis.keys(key_prefix + ':*')):
+            container = self._get_container(key)
             if container:
-                self.stats[cid] = container
+                self.stats[container['id']] = container
 
         if self.sums:
             self.display_stats = deepcopy(list(self.stats.values()))
@@ -199,14 +200,14 @@ class StatSquidTop(object):
 
         return True
 
-    def _get_container(self,cid):
+    def _get_container(self, key):
         """
         Fetch all fields in a hash key from redis, mapping to types defined
         in self.keys. Return None if any keys are missing or last update
         was > 10s ago.
         """
         now = unix_time(datetime.utcnow())
-        container = self.redis.hgetall(cid)
+        container = self.redis.hgetall(key)
 
         if False in [k in container for k in self.keys]:
             return None

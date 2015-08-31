@@ -1,2 +1,4 @@
 import logging
-logging.basicConfig(level=logging.WARN)
+logging.basicConfig(level=logging.DEBUG)
+
+key_prefix = 'statsquid'
