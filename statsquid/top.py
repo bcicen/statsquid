@@ -36,7 +36,7 @@ class StatSquidTop(object):
             'io_read_bytes_total'  : float,
             'io_write_bytes_total' : float
         }
-        self.valid_filters = [k for k,v in self.keys.items() if v == str]
+        self.valid_filters = [k for k,v in list(self.keys.items()) if v == str]
 
         self.stats  = {}
         while True:
@@ -212,7 +212,7 @@ class StatSquidTop(object):
             return None
 
         stat = { k:convert_type(container[k],t) for \
-                    k,t in self.keys.items() }
+                    k,t in list(self.keys.items()) }
 
         if now - stat['last_read'] > 10:
             return None
@@ -238,7 +238,7 @@ class StatSquidTop(object):
         time_delta = stat['last_read'] - last_stat['last_read']
         diffdict = { k:(last_stat[k],stat[k],time_delta) for \
                         k in self.keys if '_total' in k }
-        for k,v in diffdict.items():
+        for k,v in list(diffdict.items()):
             stat[k] = self._get_delta(*v)
 
         return stat

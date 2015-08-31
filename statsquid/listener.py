@@ -52,7 +52,7 @@ class StatListener(object):
     def _flush_all(self):
         now = unix_time(datetime.utcnow())
         containers = self.containers.copy()
-        for cid,c in containers.items():
+        for cid,c in list(containers.items()):
             c.flush()
             if now - c.last_read > self.maint_interval:
                 c.delete()

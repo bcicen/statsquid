@@ -40,7 +40,7 @@ def main():
     args = parser.parse_args()
     #override command line with env vars
     [ args.__setattr__(v,os.getenv(k)) for k,v \
-            in envvars.items() if os.getenv(k) ]
+            in list(envvars.items()) if os.getenv(k) ]
 
     if ':' in args.redis:
         redis_host,redis_port = args.redis.split(':')
