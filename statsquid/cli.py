@@ -9,15 +9,14 @@ log = logging.getLogger('statsquid')
 
 def main():
     envvars = { 'STATSQUID_REDIS' : 'redis',
-                'DOCKER_HOST'     : 'docker_host',
-                'STATSQUID_DEBUG' : 'debug' }
+                'DOCKER_HOST'     : 'docker_host' }
 
     common_parser = ArgumentParser(add_help=False)
     common_parser.add_argument('--redis',
                         dest='redis',
                         help='redis host to connect to (127.0.0.1:6379)',
                         default='127.0.0.1:6379')
-    parser.add_argument('--debug',
+    common_parser.add_argument('--debug',
                         action='store_true',
                         help='enable debug output')
 
@@ -55,7 +54,6 @@ def main():
     else:
         redis_host = args.redis
         redis_port = 6379
-
 
     if args.subcommand == 'top':
         from statsquid.top import StatSquidTop
