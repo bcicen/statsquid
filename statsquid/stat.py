@@ -29,7 +29,11 @@ class Stat(AttrDict):
         self.name      = self.container_name.split('/')[-1]
         self.timestamp = self._readtime(self.read)
 
-    def _readtime(self,timestamp):
+    @staticmethod
+    def _readtime(timestamp):
+        """
+        Parse timestamp from stat, returning a UTC datetime object
+        """
         #TODO: use time.strptime
         d,t = timestamp.split('T')
         year,month,day = d.split('-')
