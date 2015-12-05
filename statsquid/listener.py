@@ -23,8 +23,7 @@ class StatListener(object):
         self.last_maint = datetime.now()
 
         self.redis = StrictRedis(host=redis_host,
-                                 port=redis_port,
-                                 decode_responses=True)
+                                 port=redis_port)
         self.sub = self.redis.pubsub(ignore_subscribe_messages=True)
         self.sub.subscribe('statsquid')
 
