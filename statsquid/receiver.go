@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"math"
-
-	"gopkg.in/redis.v3"
 )
 
 func Round(val float64, roundOn float64, places int) (newVal float64) {
@@ -21,20 +19,9 @@ func Round(val float64, roundOn float64, places int) (newVal float64) {
 	return
 }
 
-func readIn() {
-	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	_, err := client.Ping().Result()
-	if err != nil {
-		panic(err)
-	}
-	pubsub, err := client.Subscribe("statsquid")
-	if err != nil {
-		panic(err)
-	}
+func readIn(transport *Transport) {
+	pubsub, err := transport.Subscribe()
+	failOnError(err)
 	defer pubsub.Close()
 
 	var stat StatSquidStat

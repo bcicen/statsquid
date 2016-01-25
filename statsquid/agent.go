@@ -1,18 +1,26 @@
 package main
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
-	"gopkg.in/redis.v3"
 )
+
+type AgentOpts struct {
+	dockerHost string
+	verbose    bool
+}
 
 type Agent struct {
 	docker     *docker.Client
-	redis      *redis.Client
+	transport  *Transport
 	allStats   chan string
 	collectors map[string]*Collector
 	hostInfo   map[string]string
+	counter    int64
+	verbose    bool
+	lastReport time.Time
 }
 
 type Collector struct {
@@ -21,31 +29,25 @@ type Collector struct {
 	opts  docker.StatsOptions
 }
 
-func newAgent(dockerHost string) *Agent {
-	api, err := docker.NewClient(dockerHost)
+func newAgent(opts *AgentOpts, transport *Transport) *Agent {
+	api, err := docker.NewClient(opts.dockerHost)
 	failOnError(err)
 	info, err := api.Info()
 	failOnError(err)
 
-	redis := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "",
-		DB:       0,
-	})
-	_, err = redis.Ping().Result()
-	failOnError(err)
-
 	agent := &Agent{
 		docker:     api,
-		redis:      redis,
+		transport:  transport,
 		allStats:   make(chan string),
 		collectors: make(map[string]*Collector),
 		hostInfo:   info.Map(),
+		verbose:    opts.verbose,
+		lastReport: time.Now(),
 	}
 	return agent
 }
 
-func (agent *Agent) watchContainers(verbose bool) {
+func (agent *Agent) watchContainers() {
 	containers, err := agent.docker.ListContainers(docker.ListContainersOptions{})
 	failOnError(err)
 	for _, c := range containers {
@@ -54,15 +56,19 @@ func (agent *Agent) watchContainers(verbose bool) {
 			agent.collectors[c.ID] = agent.newCollector(container)
 		}
 	}
-	if verbose {
+	if agent.verbose && time.Since(agent.lastReport).Seconds() > 10 {
 		agent.report()
 	}
 	time.Sleep(1 * time.Second)
-	agent.watchContainers(verbose)
+	agent.watchContainers()
 }
 
 func (agent *Agent) report() {
+	diff := strconv.FormatFloat(time.Since(agent.lastReport).Seconds(), 'f', 3, 64)
 	output("%d active collectors", len(agent.collectors))
+	output("%v", agent.counter, "stats collected in last", diff, "seconds")
+	agent.counter = 0
+	agent.lastReport = time.Now()
 }
 
 func (agent *Agent) newContainer(c docker.APIContainers) *Container {
@@ -110,13 +116,16 @@ func (agent *Agent) pack(container *Container, stats chan *docker.Stats) {
 		ss := &StatSquidStat{container, stat}
 		packedStat, err := ss.Pack()
 		failOnError(err)
+		if agent.verbose {
+			agent.counter++
+		}
 		agent.allStats <- packedStat
 	}
 }
 
 func (agent *Agent) streamOut() {
 	for s := range agent.allStats {
-		err := agent.redis.Publish("statsquid", s).Err()
+		err := agent.transport.Publish(s)
 		failOnError(err)
 	}
 }

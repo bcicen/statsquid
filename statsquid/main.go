@@ -11,8 +11,8 @@ import (
 var version = "dev-build"
 
 func output(s string, a ...interface{}) {
-	bold := color.New(color.Bold).SprintFunc()
 	msg := fmt.Sprintf(s, a)
+	bold := color.New(color.Bold).SprintFunc()
 	fmt.Printf("%s %s\n", bold("statsquid"), msg)
 }
 
@@ -50,8 +50,14 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) {
-				agent := newAgent(c.String("docker-host"))
-				go agent.watchContainers(c.GlobalBool("verbose"))
+				transport, err := newTransport("127.0.0.1:6379")
+				failOnError(err)
+				agent := newAgent(&AgentOpts{
+					dockerHost: c.String("docker-host"),
+					verbose:    c.GlobalBool("verbose"),
+				},
+					transport)
+				go agent.watchContainers()
 				go agent.streamOut()
 				select {}
 			},
@@ -60,7 +66,9 @@ func main() {
 			Name:  "listener",
 			Usage: "statsquid listener",
 			Action: func(c *cli.Context) {
-				readIn()
+				transport, err := newTransport("127.0.0.1:6379")
+				failOnError(err)
+				readIn(transport)
 			},
 		},
 	}
