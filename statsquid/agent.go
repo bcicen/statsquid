@@ -5,13 +5,12 @@ import (
 
 	"github.com/fsouza/go-dockerclient"
 	"gopkg.in/redis.v3"
-	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 type Agent struct {
 	docker     *docker.Client
 	redis      *redis.Client
-	allStats   chan []byte
+	allStats   chan string
 	collectors map[string]*Collector
 	hostInfo   map[string]string
 }
@@ -20,19 +19,6 @@ type Collector struct {
 	stats chan *docker.Stats
 	done  chan bool
 	opts  docker.StatsOptions
-}
-
-type Container struct {
-	Host     string
-	HostNcpu string
-	Id       string
-	Image    string
-	Names    []string
-}
-
-type StatSquidStat struct {
-	*Container
-	*docker.Stats
 }
 
 func newAgent(dockerHost string) *Agent {
@@ -52,7 +38,7 @@ func newAgent(dockerHost string) *Agent {
 	agent := &Agent{
 		docker:     api,
 		redis:      redis,
-		allStats:   make(chan []byte),
+		allStats:   make(chan string),
 		collectors: make(map[string]*Collector),
 		hostInfo:   info.Map(),
 	}
@@ -122,15 +108,15 @@ func (agent *Agent) collect(opts docker.StatsOptions) {
 func (agent *Agent) pack(container *Container, stats chan *docker.Stats) {
 	for stat := range stats {
 		ss := &StatSquidStat{container, stat}
-		b, err := msgpack.Marshal(ss)
+		packedStat, err := ss.Pack()
 		failOnError(err)
-		agent.allStats <- b
+		agent.allStats <- packedStat
 	}
 }
 
 func (agent *Agent) streamOut() {
 	for s := range agent.allStats {
-		err := agent.redis.Publish("statsquid", string(s)).Err()
+		err := agent.redis.Publish("statsquid", s).Err()
 		failOnError(err)
 	}
 }
