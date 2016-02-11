@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/rpc"
 	"strconv"
 	"time"
 
@@ -8,13 +9,14 @@ import (
 )
 
 type AgentOpts struct {
+	mantleHost string
 	dockerHost string
 	verbose    bool
 }
 
 type Agent struct {
 	docker     *docker.Client
-	transport  *Transport
+	rpcClient  *rpc.Client
 	allStats   chan string
 	collectors map[string]*Collector
 	hostInfo   map[string]string
@@ -29,15 +31,19 @@ type Collector struct {
 	opts  docker.StatsOptions
 }
 
-func newAgent(opts *AgentOpts, transport *Transport) *Agent {
-	api, err := docker.NewClient(opts.dockerHost)
+func newAgent(opts *AgentOpts) *Agent {
+	docker, err := docker.NewClient(opts.dockerHost)
 	failOnError(err)
-	info, err := api.Info()
+
+	info, err := docker.Info()
+	failOnError(err)
+
+	rpcClient, err := rpc.DialHTTP("tcp", opts.mantleHost)
 	failOnError(err)
 
 	agent := &Agent{
-		docker:     api,
-		transport:  transport,
+		docker:     docker,
+		rpcClient:  rpcClient,
 		allStats:   make(chan string),
 		collectors: make(map[string]*Collector),
 		hostInfo:   info.Map(),
@@ -124,8 +130,10 @@ func (agent *Agent) pack(container *Container, stats chan *docker.Stats) {
 }
 
 func (agent *Agent) streamOut() {
+	var err error
+	var reply int
 	for s := range agent.allStats {
-		err := agent.transport.Publish(s)
+		err = agent.rpcClient.Call("GiantAxon.AppendStat", s, &reply)
 		failOnError(err)
 	}
 }

@@ -48,27 +48,37 @@ func main() {
 					Usage:  "Docker host",
 					EnvVar: "DOCKER_HOST",
 				},
+				cli.StringFlag{
+					Name:   "mantle-host, m",
+					Value:  "127.0.0.1:1234",
+					Usage:  "Mantle host",
+					EnvVar: "MANTLE_HOST",
+				},
 			},
 			Action: func(c *cli.Context) {
-				transport, err := newTransport("127.0.0.1:6379")
-				failOnError(err)
 				agent := newAgent(&AgentOpts{
+					mantleHost: c.String("mantle-host"),
 					dockerHost: c.String("docker-host"),
 					verbose:    c.GlobalBool("verbose"),
-				},
-					transport)
+				})
 				go agent.watchContainers()
 				go agent.streamOut()
 				select {}
 			},
 		},
 		{
-			Name:  "listener",
-			Usage: "statsquid listener",
+			Name:  "mantle",
+			Usage: "statsquid mantle",
+			Flags: []cli.Flag{
+				cli.IntFlag{
+					Name:   "listen, l",
+					Value:  1234,
+					Usage:  "Port to listen on",
+					EnvVar: "MANTLE_PORT",
+				},
+			},
 			Action: func(c *cli.Context) {
-				transport, err := newTransport("127.0.0.1:6379")
-				failOnError(err)
-				readIn(transport)
+				mantleServer(c.Int("listen"))
 			},
 		},
 	}
