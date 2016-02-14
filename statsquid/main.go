@@ -61,7 +61,7 @@ func main() {
 					dockerHost: c.String("docker-host"),
 					verbose:    c.GlobalBool("verbose"),
 				})
-				go agent.watchContainers()
+				go agent.syncMantle()
 				go agent.streamOut()
 				select {}
 			},
@@ -78,7 +78,11 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) {
-				mantleServer(c.Int("listen"))
+				opts := &mantleServerOpts{
+					listenPort: c.Int("listen"),
+					verbose:    c.GlobalBool("verbose"),
+				}
+				mantleServer(opts)
 			},
 		},
 	}

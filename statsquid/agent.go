@@ -15,14 +15,14 @@ type AgentOpts struct {
 }
 
 type Agent struct {
-	docker     *docker.Client
-	rpcClient  *rpc.Client
-	allStats   chan string
-	collectors map[string]*Collector
-	hostInfo   map[string]string
-	counter    int64
-	verbose    bool
-	lastReport time.Time
+	dockerClient *docker.Client
+	mantleClient *rpc.Client
+	allStats     chan string
+	collectors   map[string]*Collector
+	nodeInfo     map[string]string
+	counter      int64
+	verbose      bool
+	lastReport   time.Time
 }
 
 type Collector struct {
@@ -32,41 +32,63 @@ type Collector struct {
 }
 
 func newAgent(opts *AgentOpts) *Agent {
-	docker, err := docker.NewClient(opts.dockerHost)
+	dockerClient, err := docker.NewClient(opts.dockerHost)
 	failOnError(err)
 
-	info, err := docker.Info()
+	mantleClient, err := rpc.DialHTTP("tcp", opts.mantleHost)
 	failOnError(err)
 
-	rpcClient, err := rpc.DialHTTP("tcp", opts.mantleHost)
+	info, err := dockerClient.Info()
 	failOnError(err)
 
 	agent := &Agent{
-		docker:     docker,
-		rpcClient:  rpcClient,
-		allStats:   make(chan string),
-		collectors: make(map[string]*Collector),
-		hostInfo:   info.Map(),
-		verbose:    opts.verbose,
-		lastReport: time.Now(),
+		dockerClient: dockerClient,
+		mantleClient: mantleClient,
+		allStats:     make(chan string),
+		collectors:   make(map[string]*Collector),
+		nodeInfo:     info.Map(),
+		verbose:      opts.verbose,
+		lastReport:   time.Now(),
 	}
 	return agent
 }
 
-func (agent *Agent) watchContainers() {
-	containers, err := agent.docker.ListContainers(docker.ListContainersOptions{})
+func (agent *Agent) syncContainers() []*Container {
+	var reply []*Container
+	var nContainers []*Container
+
+	containers, err := agent.dockerClient.ListContainers(docker.ListContainersOptions{})
 	failOnError(err)
 	for _, c := range containers {
-		if _, ok := agent.collectors[c.ID]; ok == false {
-			container := agent.newContainer(c)
-			agent.collectors[c.ID] = agent.newCollector(container)
+		nContainers = append(nContainers, newContainer(agent.nodeInfo["Name"], agent.nodeInfo["NCpu"], c))
+	}
+
+	err = agent.mantleClient.Call("GiantAxon.SyncContainers", nContainers, &reply)
+	failOnError(err)
+
+	return reply
+}
+
+func (agent *Agent) syncMantle() {
+	for _, c := range agent.syncContainers() {
+		if c.Watch {
+			//start collectors for requested containers
+			if _, ok := agent.collectors[c.ID]; ok == false {
+				agent.collectors[c.ID] = agent.newCollector(c)
+			}
+		} else {
+			//stop collectors for requested containers
+			if _, ok := agent.collectors[c.ID]; ok == true {
+				agent.collectors[c.ID].done <- true
+			}
 		}
 	}
+
 	if agent.verbose && time.Since(agent.lastReport).Seconds() > 10 {
 		agent.report()
 	}
 	time.Sleep(1 * time.Second)
-	agent.watchContainers()
+	agent.syncMantle()
 }
 
 func (agent *Agent) report() {
@@ -77,17 +99,6 @@ func (agent *Agent) report() {
 	agent.lastReport = time.Now()
 }
 
-func (agent *Agent) newContainer(c docker.APIContainers) *Container {
-	container := &Container{
-		Host:     agent.hostInfo["Name"],
-		HostNcpu: agent.hostInfo["NCPU"],
-		Id:       c.ID,
-		Image:    c.Image,
-		Names:    c.Names,
-	}
-	return container
-}
-
 func (agent *Agent) newCollector(c *Container) *Collector {
 	exitChannel := make(chan bool)
 	statsChannel := make(chan *docker.Stats)
@@ -96,10 +107,10 @@ func (agent *Agent) newCollector(c *Container) *Collector {
 		stats: statsChannel,
 		done:  exitChannel,
 		opts: docker.StatsOptions{
-			ID:     c.Id,
+			ID:     c.ID,
 			Stats:  statsChannel,
 			Stream: true,
-			Done:   make(chan bool),
+			Done:   exitChannel,
 		},
 	}
 
@@ -111,7 +122,7 @@ func (agent *Agent) newCollector(c *Container) *Collector {
 //collect stats for given container
 func (agent *Agent) collect(opts docker.StatsOptions) {
 	output("starting collector for container: %s", opts.ID)
-	agent.docker.Stats(opts)
+	agent.dockerClient.Stats(opts)
 	output("stopping collector for container: %s", opts.ID)
 	delete(agent.collectors, opts.ID)
 }
@@ -133,7 +144,7 @@ func (agent *Agent) streamOut() {
 	var err error
 	var reply int
 	for s := range agent.allStats {
-		err = agent.rpcClient.Call("GiantAxon.AppendStat", s, &reply)
+		err = agent.mantleClient.Call("GiantAxon.SendStat", s, &reply)
 		failOnError(err)
 	}
 }
