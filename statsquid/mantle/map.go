@@ -1,6 +1,8 @@
 package mantle
 
 import (
+	"time"
+
 	"github.com/vektorlab/statsquid/models"
 	"github.com/vektorlab/statsquid/util"
 )
@@ -12,15 +14,32 @@ type NodeInfo map[string]string
 type NerveMap struct {
 	cmap    map[string]*models.Container
 	nmap    map[string]NodeInfo
+	ttlMap  map[string]time.Time
 	verbose bool
 }
 
 func newNerveMap(verbose bool) *NerveMap {
-	return &NerveMap{
+	n := &NerveMap{
 		cmap:    make(map[string]*models.Container),
 		nmap:    make(map[string]NodeInfo),
+		ttlMap:  make(map[string]time.Time),
 		verbose: verbose,
 	}
+	go n.removeStaleContainers()
+	return n
+}
+
+func (m *NerveMap) removeStaleContainers() {
+	counter := 0
+	for id, lastSeen := range m.ttlMap {
+		if time.Since(lastSeen).Seconds() > 10 {
+			m.delContainer(id)
+			counter++
+		}
+	}
+	util.Output("removed %d stale containers", counter)
+	time.Sleep(5 * time.Second)
+	m.removeStaleContainers()
 }
 
 func (m *NerveMap) containerExists(id string) bool {
@@ -45,6 +64,10 @@ func (m *NerveMap) delContainer(id string) {
 	if m.verbose {
 		util.Output("container de-registered: %s", id)
 	}
+}
+
+func (m *NerveMap) bumpTTL(id string) {
+	m.ttlMap[id] = time.Now()
 }
 
 func (m *NerveMap) addNode(n NodeInfo) {

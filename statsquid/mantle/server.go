@@ -50,26 +50,18 @@ func (a *GiantAxon) ToggleCollector(id string, reply *int) error {
 //report running containers to mantle, replying with a container map
 //with global mantle directives applied, such as watch
 func (a *GiantAxon) SyncContainers(containers []*models.Container, reply *[]*models.Container) error {
-	reportingNode := containers[0].NodeName
-	//add containers we haven't seen before
+	var replyContainers []*models.Container
+
 	for _, c := range containers {
-		if !a.nerveMap.containerExists(c.ID) {
+		if a.nerveMap.containerExists(c.ID) {
+			a.nerveMap.bumpTTL(c.ID)
+		} else {
 			a.nerveMap.addContainer(c)
 		}
+		replyContainers = append(replyContainers, a.nerveMap.getContainerById(c.ID))
 	}
-	//remove stale containers
-	var stillExists bool
-	for _, c := range a.nerveMap.getContainersByNode(containers[0].NodeName) {
-		for _, nc := range containers {
-			if nc.ID == c.ID {
-				stillExists = true
-			}
-		}
-		if !stillExists {
-			a.nerveMap.delContainer(c.ID)
-		}
-	}
-	*reply = a.nerveMap.getContainersByNode(reportingNode)
+
+	*reply = replyContainers
 	return nil
 }
 

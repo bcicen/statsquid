@@ -73,7 +73,7 @@ func (agent *Agent) syncContainers() []*models.Container {
 }
 
 func (agent *Agent) syncMantle() {
-	util.Output("sync: %s", time.Now())
+	//	util.Output("sync: %s", time.Now())
 	for _, c := range agent.syncContainers() {
 		if c.Watch {
 			//start collectors for requested containers
