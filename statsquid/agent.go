@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
+	"github.com/vektorlab/statsquid/models"
+	"github.com/vektorlab/statsquid/util"
 )
 
 type AgentOpts struct {
@@ -17,9 +19,9 @@ type AgentOpts struct {
 type Agent struct {
 	dockerClient *docker.Client
 	mantleClient *rpc.Client
-	allStats     chan string
-	collectors   map[string]*Collector
 	nodeInfo     map[string]string
+	allStats     chan []byte
+	collectors   map[string]*Collector
 	counter      int64
 	verbose      bool
 	lastReport   time.Time
@@ -33,43 +35,45 @@ type Collector struct {
 
 func newAgent(opts *AgentOpts) *Agent {
 	dockerClient, err := docker.NewClient(opts.dockerHost)
-	failOnError(err)
+	util.FailOnError(err)
 
 	mantleClient, err := rpc.DialHTTP("tcp", opts.mantleHost)
-	failOnError(err)
+	util.FailOnError(err)
 
 	info, err := dockerClient.Info()
-	failOnError(err)
+	util.FailOnError(err)
 
 	agent := &Agent{
 		dockerClient: dockerClient,
 		mantleClient: mantleClient,
-		allStats:     make(chan string),
-		collectors:   make(map[string]*Collector),
 		nodeInfo:     info.Map(),
+		allStats:     make(chan []byte),
+		collectors:   make(map[string]*Collector),
 		verbose:      opts.verbose,
 		lastReport:   time.Now(),
 	}
+
 	return agent
 }
 
-func (agent *Agent) syncContainers() []*Container {
-	var reply []*Container
-	var nContainers []*Container
+func (agent *Agent) syncContainers() []*models.Container {
+	var reply []*models.Container
+	var nContainers []*models.Container
 
 	containers, err := agent.dockerClient.ListContainers(docker.ListContainersOptions{})
-	failOnError(err)
+	util.FailOnError(err)
 	for _, c := range containers {
-		nContainers = append(nContainers, newContainer(agent.nodeInfo["Name"], agent.nodeInfo["NCpu"], c))
+		nContainers = append(nContainers, models.NewContainer(agent.nodeInfo["Name"], agent.nodeInfo["NCpu"], c))
 	}
 
 	err = agent.mantleClient.Call("GiantAxon.SyncContainers", nContainers, &reply)
-	failOnError(err)
+	util.FailOnError(err)
 
 	return reply
 }
 
 func (agent *Agent) syncMantle() {
+	util.Output("sync: %s", time.Now())
 	for _, c := range agent.syncContainers() {
 		if c.Watch {
 			//start collectors for requested containers
@@ -84,22 +88,22 @@ func (agent *Agent) syncMantle() {
 		}
 	}
 
-	if agent.verbose && time.Since(agent.lastReport).Seconds() > 10 {
+	if agent.verbose && time.Since(agent.lastReport).Seconds() > 60 {
 		agent.report()
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 	agent.syncMantle()
 }
 
 func (agent *Agent) report() {
 	diff := strconv.FormatFloat(time.Since(agent.lastReport).Seconds(), 'f', 3, 64)
-	output("%d active collectors", len(agent.collectors))
-	output("%v", agent.counter, "stats collected in last", diff, "seconds")
+	util.Output("%d active collectors", len(agent.collectors))
+	util.Output("%v", agent.counter, "stats collected in last", diff, "seconds")
 	agent.counter = 0
 	agent.lastReport = time.Now()
 }
 
-func (agent *Agent) newCollector(c *Container) *Collector {
+func (agent *Agent) newCollector(c *models.Container) *Collector {
 	exitChannel := make(chan bool)
 	statsChannel := make(chan *docker.Stats)
 
@@ -121,22 +125,20 @@ func (agent *Agent) newCollector(c *Container) *Collector {
 
 //collect stats for given container
 func (agent *Agent) collect(opts docker.StatsOptions) {
-	output("starting collector for container: %s", opts.ID)
+	util.Output("starting collector for container: %s", opts.ID)
+	defer delete(agent.collectors, opts.ID)
 	agent.dockerClient.Stats(opts)
-	output("stopping collector for container: %s", opts.ID)
-	delete(agent.collectors, opts.ID)
+	util.Output("stopping collector for container: %s", opts.ID)
 }
 
 //encode stats to aggregate channel
-func (agent *Agent) pack(container *Container, stats chan *docker.Stats) {
+func (agent *Agent) pack(container *models.Container, stats chan *docker.Stats) {
 	for stat := range stats {
-		ss := &StatSquidStat{container, stat}
-		packedStat, err := ss.Pack()
-		failOnError(err)
+		ss := &models.StatSquidStat{container, stat}
+		agent.allStats <- ss.Pack()
 		if agent.verbose {
 			agent.counter++
 		}
-		agent.allStats <- packedStat
 	}
 }
 
@@ -145,6 +147,6 @@ func (agent *Agent) streamOut() {
 	var reply int
 	for s := range agent.allStats {
 		err = agent.mantleClient.Call("GiantAxon.SendStat", s, &reply)
-		failOnError(err)
+		util.FailOnError(err)
 	}
 }

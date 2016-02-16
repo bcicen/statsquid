@@ -1,27 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/codegangsta/cli"
-	"github.com/fatih/color"
+	"github.com/vektorlab/statsquid/mantle"
 )
 
 var version = "dev-build"
-
-func output(s string, a ...interface{}) {
-	msg := fmt.Sprintf(s, a)
-	bold := color.New(color.Bold).SprintFunc()
-	fmt.Printf("%s %s\n", bold("statsquid"), msg)
-}
-
-func failOnError(err error) {
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
 
 func main() {
 	app := cli.NewApp()
@@ -76,13 +62,21 @@ func main() {
 					Usage:  "Port to listen on",
 					EnvVar: "MANTLE_PORT",
 				},
+				cli.StringFlag{
+					Name:   "elastic-host",
+					Value:  "127.0.0.1",
+					Usage:  "Elasticsearch host",
+					EnvVar: "MANTLE_ES_HOST",
+				},
 			},
 			Action: func(c *cli.Context) {
-				opts := &mantleServerOpts{
-					listenPort: c.Int("listen"),
-					verbose:    c.GlobalBool("verbose"),
+				opts := &mantle.MantleServerOpts{
+					ListenPort:  c.Int("listen"),
+					ElasticHost: c.String("elastic-host"),
+					ElasticPort: 9300,
+					Verbose:     c.GlobalBool("verbose"),
 				}
-				mantleServer(opts)
+				mantle.MantleServer(opts)
 			},
 		},
 	}
