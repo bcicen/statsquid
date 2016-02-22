@@ -17,8 +17,11 @@ type GiantAxon struct {
 	verbose    bool
 }
 
-func (a *GiantAxon) SendStat(stat []byte, reply *int) error {
-	a.statStream <- stat
+func (a *GiantAxon) SendStat(stats [][]byte, reply *int) error {
+	util.Output("got %d stats", len(stats))
+	for _, stat := range stats {
+		a.statStream <- stat
+	}
 	*reply = 1
 	return nil
 }

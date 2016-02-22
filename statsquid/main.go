@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	"github.com/vektorlab/statsquid/agent"
 	"github.com/vektorlab/statsquid/mantle"
 )
 
@@ -42,13 +43,13 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) {
-				agent := newAgent(&AgentOpts{
-					mantleHost: c.String("mantle-host"),
-					dockerHost: c.String("docker-host"),
-					verbose:    c.GlobalBool("verbose"),
+				nodeAgent := agent.NewAgent(&agent.AgentOpts{
+					MantleHost: c.String("mantle-host"),
+					DockerHost: c.String("docker-host"),
+					Verbose:    c.GlobalBool("verbose"),
 				})
-				go agent.syncMantle()
-				go agent.streamOut()
+				go nodeAgent.SyncMantle()
+				go nodeAgent.StreamOut()
 				select {}
 			},
 		},

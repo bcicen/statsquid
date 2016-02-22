@@ -1,4 +1,4 @@
-package main
+package agent
 
 import (
 	"net/rpc"
@@ -11,16 +11,16 @@ import (
 )
 
 type AgentOpts struct {
-	mantleHost string
-	dockerHost string
-	verbose    bool
+	MantleHost string
+	DockerHost string
+	Verbose    bool
 }
 
 type Agent struct {
 	dockerClient *docker.Client
 	mantleClient *rpc.Client
+	streamQ      *StreamQ
 	nodeInfo     map[string]string
-	allStats     chan []byte
 	collectors   map[string]*Collector
 	counter      int64
 	verbose      bool
@@ -33,11 +33,11 @@ type Collector struct {
 	opts  docker.StatsOptions
 }
 
-func newAgent(opts *AgentOpts) *Agent {
-	dockerClient, err := docker.NewClient(opts.dockerHost)
+func NewAgent(opts *AgentOpts) *Agent {
+	dockerClient, err := docker.NewClient(opts.DockerHost)
 	util.FailOnError(err)
 
-	mantleClient, err := rpc.DialHTTP("tcp", opts.mantleHost)
+	mantleClient, err := rpc.DialHTTP("tcp", opts.MantleHost)
 	util.FailOnError(err)
 
 	info, err := dockerClient.Info()
@@ -46,10 +46,10 @@ func newAgent(opts *AgentOpts) *Agent {
 	agent := &Agent{
 		dockerClient: dockerClient,
 		mantleClient: mantleClient,
+		streamQ:      newStreamQ(),
 		nodeInfo:     info.Map(),
-		allStats:     make(chan []byte),
 		collectors:   make(map[string]*Collector),
-		verbose:      opts.verbose,
+		verbose:      opts.Verbose,
 		lastReport:   time.Now(),
 	}
 
@@ -72,7 +72,7 @@ func (agent *Agent) syncContainers() []*models.Container {
 	return reply
 }
 
-func (agent *Agent) syncMantle() {
+func (agent *Agent) SyncMantle() {
 	//	util.Output("sync: %s", time.Now())
 	for _, c := range agent.syncContainers() {
 		if c.Watch {
@@ -92,7 +92,7 @@ func (agent *Agent) syncMantle() {
 		agent.report()
 	}
 	time.Sleep(3 * time.Second)
-	agent.syncMantle()
+	agent.SyncMantle()
 }
 
 func (agent *Agent) report() {
@@ -135,18 +135,21 @@ func (agent *Agent) collect(opts docker.StatsOptions) {
 func (agent *Agent) pack(container *models.Container, stats chan *docker.Stats) {
 	for stat := range stats {
 		ss := &models.StatSquidStat{container, stat}
-		agent.allStats <- ss.Pack()
+		agent.streamQ.add(ss.Pack())
 		if agent.verbose {
 			agent.counter++
 		}
 	}
 }
 
-func (agent *Agent) streamOut() {
+func (agent *Agent) StreamOut() {
 	var err error
 	var reply int
-	for s := range agent.allStats {
-		err = agent.mantleClient.Call("GiantAxon.SendStat", s, &reply)
-		util.FailOnError(err)
+	for {
+		if !agent.streamQ.isEmpty() {
+			err = agent.mantleClient.Call("GiantAxon.SendStat", agent.streamQ.flush(), &reply)
+			util.FailOnError(err)
+		}
+		time.Sleep(1 * time.Second)
 	}
 }
