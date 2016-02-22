@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"strconv"
+	"time"
 
 	"github.com/vektorlab/statsquid/models"
 	"github.com/vektorlab/statsquid/util"
@@ -12,15 +13,24 @@ import (
 
 //Agent communication object
 type GiantAxon struct {
-	nerveMap   *NerveMap
-	statStream chan []byte
-	verbose    bool
+	nerveMap    *NerveMap
+	statStream  chan *models.StatSquidStat
+	verbose     bool
+	lastFlush   time.Time
+	statCounter int
 }
 
-func (a *GiantAxon) SendStat(stats [][]byte, reply *int) error {
-	util.Output("got %d stats", len(stats))
+func (a *GiantAxon) FlushToMantle(data []byte, reply *int) error {
+	stats := models.UnpackStats(data)
+	a.statCounter += len(stats)
 	for _, stat := range stats {
 		a.statStream <- stat
+	}
+	if time.Since(a.lastFlush).Seconds() > 10 {
+		diff := strconv.FormatFloat(time.Since(a.lastFlush).Seconds(), 'f', 3, 64)
+		util.Output("%v", a.statCounter, "stats collected in last", diff, "seconds")
+		a.statCounter = 0
+		a.lastFlush = time.Now()
 	}
 	*reply = 1
 	return nil
@@ -59,11 +69,12 @@ type MantleServerOpts struct {
 }
 
 func MantleServer(opts *MantleServerOpts) {
-	statStream := make(chan []byte)
+	statStream := make(chan *models.StatSquidStat)
 	axon := &GiantAxon{
 		nerveMap:   newNerveMap(opts.Verbose),
 		statStream: statStream,
 		verbose:    opts.Verbose,
+		lastFlush:  time.Now(),
 	}
 	//init RPC server
 	rpc.Register(axon)

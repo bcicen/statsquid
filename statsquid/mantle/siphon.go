@@ -28,10 +28,8 @@ func newSiphon(elasticHost string) *Siphon {
 	return siphon
 }
 
-func (siphon *Siphon) worker(stream chan []byte) {
-	var stat models.StatSquidStat
-	for s := range stream {
-		stat.Unpack(s)
+func (siphon *Siphon) worker(stream chan *models.StatSquidStat) {
+	for stat := range stream {
 		j, err := json.Marshal(stat)
 		if err != nil {
 			fmt.Println(err)

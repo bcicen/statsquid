@@ -19,7 +19,7 @@ type AgentOpts struct {
 type Agent struct {
 	dockerClient   *docker.Client
 	mantleClient   *rpc.Client
-	streamQ        *StreamQ
+	statQ          *StatQ
 	nodeInfo       *models.Node
 	nodeContainers models.ContainerMap
 	collectors     map[string]*Collector
@@ -48,7 +48,7 @@ func NewAgent(opts *AgentOpts) *Agent {
 	agent := &Agent{
 		dockerClient:   dockerClient,
 		mantleClient:   mantleClient,
-		streamQ:        newStreamQ(),
+		statQ:          newStatQ(),
 		nodeInfo:       models.NewNode(info),
 		nodeContainers: make(models.ContainerMap),
 		collectors:     make(map[string]*Collector),
@@ -91,7 +91,7 @@ func (agent *Agent) ReportContainers() {
 	agent.needsSync = false
 	agent.nodeContainers = report.Containers
 	if agent.verbose {
-		util.Output("synced with mantle")
+		util.Output("synced running containers to mantle")
 	}
 }
 
@@ -124,10 +124,10 @@ func (agent *Agent) SyncMantle() {
 		agent.ReportContainers()
 	}
 	agent.SyncCollectors()
-	if agent.verbose && time.Since(agent.lastReport).Seconds() > 60 {
+	if agent.verbose && time.Since(agent.lastReport).Seconds() > 10 {
 		agent.report()
 	}
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 	agent.SyncMantle()
 }
 
@@ -161,7 +161,7 @@ func (agent *Agent) newCollector(containerID string) *Collector {
 	}
 
 	go agent.collect(collector.opts)
-	go agent.pack(container, statsChannel)
+	go agent.streamHandler(container, statsChannel)
 	return collector
 }
 
@@ -174,10 +174,9 @@ func (agent *Agent) collect(opts docker.StatsOptions) {
 }
 
 //encode stats to aggregate channel
-func (agent *Agent) pack(container *models.Container, stats chan *docker.Stats) {
+func (agent *Agent) streamHandler(container *models.Container, stats chan *docker.Stats) {
 	for stat := range stats {
-		ss := &models.StatSquidStat{container, stat}
-		agent.streamQ.add(ss.Pack())
+		agent.statQ.add(&models.StatSquidStat{container, stat})
 		if agent.verbose {
 			agent.counter++
 		}
@@ -188,10 +187,11 @@ func (agent *Agent) StreamOut() {
 	var err error
 	var reply int
 	for {
-		if !agent.streamQ.isEmpty() {
-			err = agent.mantleClient.Call("GiantAxon.SendStat", agent.streamQ.flush(), &reply)
+		if !agent.statQ.isEmpty() {
+			err = agent.mantleClient.Call("GiantAxon.FlushToMantle", agent.statQ.flush(), &reply)
 			util.FailOnError(err)
+		} else {
+			time.Sleep(1 * time.Second)
 		}
-		time.Sleep(1 * time.Second)
 	}
 }

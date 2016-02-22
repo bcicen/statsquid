@@ -2,35 +2,37 @@ package agent
 
 import (
 	"sync"
+
+	"github.com/vektorlab/statsquid/models"
 )
 
 //Streaming message queue
-type StreamQ struct {
-	queue [][]byte
+type StatQ struct {
+	queue []*models.StatSquidStat
 	lock  sync.RWMutex
 }
 
-func newStreamQ() *StreamQ {
-	return &StreamQ{
-		queue: [][]byte{},
+func newStatQ() *StatQ {
+	return &StatQ{
+		queue: []*models.StatSquidStat{},
 		lock:  sync.RWMutex{},
 	}
 }
 
-func (q *StreamQ) add(line []byte) {
+func (q *StatQ) add(s *models.StatSquidStat) {
 	q.lock.Lock()
-	q.queue = append(q.queue, line)
+	q.queue = append(q.queue, s)
 	q.lock.Unlock()
 }
 
-func (q *StreamQ) isEmpty() bool {
+func (q *StatQ) isEmpty() bool {
 	return (len(q.queue) < 1)
 }
 
-func (q *StreamQ) flush() [][]byte {
+func (q *StatQ) flush() []byte {
 	q.lock.Lock()
-	items := q.queue
-	q.queue = [][]byte{}
+	packed := models.PackStats(q.queue)
+	q.queue = nil
 	q.lock.Unlock()
-	return items
+	return packed
 }

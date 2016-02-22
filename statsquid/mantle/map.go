@@ -63,20 +63,6 @@ func (m *NerveMap) collectorExists(id string) bool {
 	return ok
 }
 
-//func (m *NerveMap) addContainer(c *models.Container) {
-//	m.nodeMap[c.NodeID][c.ID] = c
-//	if m.verbose {
-//		util.Output("new container registered: %s %s", string(c.NodeName), string(c.ID))
-//	}
-//}
-//
-//func (m *NerveMap) delContainer(containerID, nodeID string) {
-//	delete(m.nodeMap[nodeID], containerID)
-//	if m.verbose {
-//		util.Output("container de-registered: %s", containerID)
-//	}
-//}
-
 func (m *NerveMap) updateNodeContainers(report *models.ReportContainersMsg) {
 	//create a collector toggle for new containers
 	for id, _ := range report.Containers {
@@ -85,7 +71,11 @@ func (m *NerveMap) updateNodeContainers(report *models.ReportContainersMsg) {
 		}
 	}
 	//update our container map for given node
-	m.nodeMap[report.Node.NodeID] = report.Containers
+	nodeID := report.Node.NodeID
+	if _, ok := m.nodeMap[nodeID]; ok == false {
+		util.Output("New node registered: %s", nodeID)
+	}
+	m.nodeMap[nodeID] = report.Containers
 }
 
 func (m *NerveMap) getContainerById(id string) *models.Container {

@@ -11,18 +11,21 @@ type StatSquidStat struct {
 	*docker.Stats
 }
 
-func (s *StatSquidStat) Pack() []byte {
-	b, err := msgpack.Marshal(s)
+func PackStats(s []*StatSquidStat) []byte {
+	packed, err := msgpack.Marshal(s)
 	if err != nil {
 		util.Output("stat marshal failed: %s", err)
 		return nil
 	}
-	return b
+	return packed
 }
 
-func (s *StatSquidStat) Unpack(b []byte) {
-	err := msgpack.Unmarshal(b, &s)
+func UnpackStats(b []byte) []*StatSquidStat {
+	var stats []*StatSquidStat
+	err := msgpack.Unmarshal(b, &stats)
 	if err != nil {
 		util.Output("stat unmarshal failed: %s", err)
+		return nil
 	}
+	return stats
 }
