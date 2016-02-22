@@ -4,23 +4,46 @@ import (
 	"github.com/fsouza/go-dockerclient"
 )
 
-type Container struct {
-	NodeName string
-	NodeNcpu string
-	ID       string
-	Image    string
-	Names    []string
-	Watch    bool
+type ReportContainersMsg struct {
+	Node       *Node
+	Containers ContainerMap
 }
 
-func NewContainer(node string, nodeNcpu string, c docker.APIContainers) *Container {
-	container := &Container{
-		NodeName: node,
-		NodeNcpu: nodeNcpu,
-		ID:       c.ID,
-		Image:    c.Image,
-		Names:    c.Names,
-		Watch:    false,
+type Node struct {
+	NodeID       string
+	NodeName     string
+	NodeNcpu     string
+	NodeMemTotal string
+}
+
+func NewNode(env *docker.Env) *Node {
+	envMap := env.Map()
+	return &Node{
+		NodeID:       envMap["ID"],
+		NodeName:     envMap["Name"],
+		NodeNcpu:     envMap["NCPU"],
+		NodeMemTotal: envMap["MemTotal"],
 	}
-	return container
+}
+
+type ContainerMap map[string]*Container
+
+type ContainerBase struct {
+	ID    string
+	Image string
+	Names []string
+}
+
+type Container struct {
+	*Node
+	*ContainerBase
+}
+
+func NewContainer(node *Node, c docker.APIContainers) *Container {
+	base := &ContainerBase{
+		ID:    c.ID,
+		Image: c.Image,
+		Names: c.Names,
+	}
+	return &Container{node, base}
 }

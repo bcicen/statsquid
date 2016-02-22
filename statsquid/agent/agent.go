@@ -17,14 +17,16 @@ type AgentOpts struct {
 }
 
 type Agent struct {
-	dockerClient *docker.Client
-	mantleClient *rpc.Client
-	streamQ      *StreamQ
-	nodeInfo     map[string]string
-	collectors   map[string]*Collector
-	counter      int64
-	verbose      bool
-	lastReport   time.Time
+	dockerClient   *docker.Client
+	mantleClient   *rpc.Client
+	streamQ        *StreamQ
+	nodeInfo       *models.Node
+	nodeContainers models.ContainerMap
+	collectors     map[string]*Collector
+	counter        int64
+	verbose        bool
+	needsSync      bool
+	lastReport     time.Time
 }
 
 type Collector struct {
@@ -44,50 +46,84 @@ func NewAgent(opts *AgentOpts) *Agent {
 	util.FailOnError(err)
 
 	agent := &Agent{
-		dockerClient: dockerClient,
-		mantleClient: mantleClient,
-		streamQ:      newStreamQ(),
-		nodeInfo:     info.Map(),
-		collectors:   make(map[string]*Collector),
-		verbose:      opts.Verbose,
-		lastReport:   time.Now(),
+		dockerClient:   dockerClient,
+		mantleClient:   mantleClient,
+		streamQ:        newStreamQ(),
+		nodeInfo:       models.NewNode(info),
+		nodeContainers: make(models.ContainerMap),
+		collectors:     make(map[string]*Collector),
+		verbose:        opts.Verbose,
+		needsSync:      true,
+		lastReport:     time.Now(),
 	}
-
+	go agent.EventWatcher()
 	return agent
 }
 
-func (agent *Agent) syncContainers() []*models.Container {
-	var reply []*models.Container
-	var nContainers []*models.Container
+//Trigger ReportContainers on specified Docker events
+func (agent *Agent) EventWatcher() {
+	events := make(chan *docker.APIEvents)
+	agent.dockerClient.AddEventListener(events)
+	for e := range events {
+		if e.Status == "start" || e.Status == "die" {
+			agent.needsSync = true
+		}
+	}
+}
 
+//Report running containers to Mantle
+func (agent *Agent) ReportContainers() {
+	var reply *int
+
+	report := &models.ReportContainersMsg{
+		Node:       agent.nodeInfo,
+		Containers: make(models.ContainerMap),
+	}
 	containers, err := agent.dockerClient.ListContainers(docker.ListContainersOptions{})
 	util.FailOnError(err)
 	for _, c := range containers {
-		nContainers = append(nContainers, models.NewContainer(agent.nodeInfo["Name"], agent.nodeInfo["NCpu"], c))
+		report.Containers[c.ID] = models.NewContainer(agent.nodeInfo, c)
 	}
 
-	err = agent.mantleClient.Call("GiantAxon.SyncContainers", nContainers, &reply)
+	err = agent.mantleClient.Call("GiantAxon.ReportContainers", report, &reply)
 	util.FailOnError(err)
 
-	return reply
+	agent.needsSync = false
+	agent.nodeContainers = report.Containers
+	if agent.verbose {
+		util.Output("synced with mantle")
+	}
 }
 
-func (agent *Agent) SyncMantle() {
-	//	util.Output("sync: %s", time.Now())
-	for _, c := range agent.syncContainers() {
-		if c.Watch {
-			//start collectors for requested containers
-			if _, ok := agent.collectors[c.ID]; ok == false {
-				agent.collectors[c.ID] = agent.newCollector(c)
+func (agent *Agent) SyncCollectors() {
+	var collectors map[string]bool
+
+	err := agent.mantleClient.Call("GiantAxon.GetCollectors", agent.nodeInfo.NodeID, &collectors)
+	util.FailOnError(err)
+
+	for id, active := range collectors {
+		//start collectors marked active
+		if active {
+			if _, ok := agent.collectors[id]; ok == false {
+				collector := agent.newCollector(id)
+				if collector != nil {
+					agent.collectors[id] = collector
+				}
 			}
 		} else {
-			//stop collectors for requested containers
-			if _, ok := agent.collectors[c.ID]; ok == true {
-				agent.collectors[c.ID].done <- true
+			//stop collectors not marked active
+			if _, ok := agent.collectors[id]; ok == true {
+				agent.collectors[id].done <- true
 			}
 		}
 	}
+}
 
+func (agent *Agent) SyncMantle() {
+	if agent.needsSync {
+		agent.ReportContainers()
+	}
+	agent.SyncCollectors()
 	if agent.verbose && time.Since(agent.lastReport).Seconds() > 60 {
 		agent.report()
 	}
@@ -103,15 +139,21 @@ func (agent *Agent) report() {
 	agent.lastReport = time.Now()
 }
 
-func (agent *Agent) newCollector(c *models.Container) *Collector {
+func (agent *Agent) newCollector(containerID string) *Collector {
+	if _, ok := agent.nodeContainers[containerID]; ok == false {
+		util.Output("collector start failed. unknown container id: %s", containerID)
+		return nil
+	}
+
 	exitChannel := make(chan bool)
 	statsChannel := make(chan *docker.Stats)
+	container := agent.nodeContainers[containerID]
 
 	collector := &Collector{
 		stats: statsChannel,
 		done:  exitChannel,
 		opts: docker.StatsOptions{
-			ID:     c.ID,
+			ID:     container.ID,
 			Stats:  statsChannel,
 			Stream: true,
 			Done:   exitChannel,
@@ -119,7 +161,7 @@ func (agent *Agent) newCollector(c *models.Container) *Collector {
 	}
 
 	go agent.collect(collector.opts)
-	go agent.pack(c, statsChannel)
+	go agent.pack(container, statsChannel)
 	return collector
 }
 

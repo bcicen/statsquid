@@ -26,45 +26,28 @@ func (a *GiantAxon) SendStat(stats [][]byte, reply *int) error {
 	return nil
 }
 
-func (a *GiantAxon) ToggleAll(watch bool, reply *int) error {
-	for _, c := range a.nerveMap.cmap {
-		if c.Watch != watch {
-			c.Watch = watch
-			if a.verbose {
-				util.Output("collector toggled for %s on node %s", c.ID, c.NodeName)
-			}
-		}
-	}
+func (a *GiantAxon) ToggleAll(active bool, reply *int) error {
+	a.nerveMap.toggleAllCollectors(active)
 	*reply = 0
 	return nil
 }
 
 func (a *GiantAxon) ToggleCollector(id string, reply *int) error {
-	c := a.nerveMap.getContainerById(id)
-	if c == nil {
-		*reply = 1
-		return nil
-	}
-	c.Watch = (c.Watch != true)
+	a.nerveMap.toggleCollector(id)
 	*reply = 0
 	return nil
 }
 
-//report running containers to mantle, replying with a container map
-//with global mantle directives applied, such as watch
-func (a *GiantAxon) SyncContainers(containers []*models.Container, reply *[]*models.Container) error {
-	var replyContainers []*models.Container
+//report running containers to mantle
+func (a *GiantAxon) ReportContainers(report *models.ReportContainersMsg, reply *int) error {
+	a.nerveMap.updateNodeContainers(report)
+	*reply = 1
+	return nil
+}
 
-	for _, c := range containers {
-		if a.nerveMap.containerExists(c.ID) {
-			a.nerveMap.bumpTTL(c.ID)
-		} else {
-			a.nerveMap.addContainer(c)
-		}
-		replyContainers = append(replyContainers, a.nerveMap.getContainerById(c.ID))
-	}
-
-	*reply = replyContainers
+//return a map of containers to be watched for a given node
+func (a *GiantAxon) GetCollectors(nodeID string, reply *map[string]bool) error {
+	*reply = a.nerveMap.getCollectorsByNode(nodeID)
 	return nil
 }
 
