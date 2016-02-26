@@ -23,10 +23,14 @@ type Agent struct {
 	nodeInfo       *models.Node
 	nodeContainers models.ContainerMap
 	collectors     map[string]*Collector
-	counter        int64
 	verbose        bool
 	needsSync      bool
-	lastReport     time.Time
+	agentStats     *AgentStats
+}
+
+type AgentStats struct {
+	counter    int64
+	lastReport time.Time
 }
 
 type Collector struct {
@@ -45,7 +49,7 @@ func NewAgent(opts *AgentOpts) *Agent {
 	info, err := dockerClient.Info()
 	util.FailOnError(err)
 
-	agent := &Agent{
+	return &Agent{
 		dockerClient:   dockerClient,
 		mantleClient:   mantleClient,
 		statQ:          newStatQ(),
@@ -54,10 +58,15 @@ func NewAgent(opts *AgentOpts) *Agent {
 		collectors:     make(map[string]*Collector),
 		verbose:        opts.Verbose,
 		needsSync:      true,
-		lastReport:     time.Now(),
+		agentStats:     &AgentStats{0, time.Now()},
 	}
+}
+
+func (agent *Agent) Run() {
 	go agent.EventWatcher()
-	return agent
+	go agent.SyncMantle()
+	go agent.FlushStats()
+	select {}
 }
 
 //Trigger ReportContainers on specified Docker events
@@ -119,12 +128,25 @@ func (agent *Agent) SyncCollectors() {
 	}
 }
 
+//Flush queued stats to mantle
+func (agent *Agent) FlushStats() {
+	var err error
+	var reply int
+	if !agent.statQ.isEmpty() {
+		err = agent.mantleClient.Call("GiantAxon.FlushToMantle", agent.statQ.flush(), &reply)
+		util.FailOnError(err)
+	} else {
+		time.Sleep(1 * time.Second)
+	}
+	agent.FlushStats()
+}
+
 func (agent *Agent) SyncMantle() {
 	if agent.needsSync {
 		agent.ReportContainers()
 	}
 	agent.SyncCollectors()
-	if agent.verbose && time.Since(agent.lastReport).Seconds() > 10 {
+	if agent.verbose && time.Since(agent.agentStats.lastReport).Seconds() > 10 {
 		agent.report()
 	}
 	time.Sleep(1 * time.Second)
@@ -132,11 +154,11 @@ func (agent *Agent) SyncMantle() {
 }
 
 func (agent *Agent) report() {
-	diff := strconv.FormatFloat(time.Since(agent.lastReport).Seconds(), 'f', 3, 64)
+	diff := strconv.FormatFloat(time.Since(agent.agentStats.lastReport).Seconds(), 'f', 3, 64)
 	util.Output("%d active collectors", len(agent.collectors))
-	util.Output("%v", agent.counter, "stats collected in last", diff, "seconds")
-	agent.counter = 0
-	agent.lastReport = time.Now()
+	util.Output("%v", agent.agentStats.counter, "stats collected in last", diff, "seconds")
+	agent.agentStats.counter = 0
+	agent.agentStats.lastReport = time.Now()
 }
 
 func (agent *Agent) newCollector(containerID string) *Collector {
@@ -173,25 +195,12 @@ func (agent *Agent) collect(opts docker.StatsOptions) {
 	util.Output("stopping collector for container: %s", opts.ID)
 }
 
-//encode stats to aggregate channel
+//wrap stat with container metadata
 func (agent *Agent) streamHandler(container *models.Container, stats chan *docker.Stats) {
 	for stat := range stats {
 		agent.statQ.add(&models.StatSquidStat{container, stat})
 		if agent.verbose {
-			agent.counter++
-		}
-	}
-}
-
-func (agent *Agent) StreamOut() {
-	var err error
-	var reply int
-	for {
-		if !agent.statQ.isEmpty() {
-			err = agent.mantleClient.Call("GiantAxon.FlushToMantle", agent.statQ.flush(), &reply)
-			util.FailOnError(err)
-		} else {
-			time.Sleep(1 * time.Second)
+			agent.agentStats.counter++
 		}
 	}
 }

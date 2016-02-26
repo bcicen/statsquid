@@ -39,7 +39,7 @@ func main() {
 					Name:   "mantle-host, m",
 					Value:  "127.0.0.1:1234",
 					Usage:  "Mantle host",
-					EnvVar: "MANTLE_HOST",
+					EnvVar: "STATSQUID_MANTLE_HOST",
 				},
 			},
 			Action: func(c *cli.Context) {
@@ -48,9 +48,7 @@ func main() {
 					DockerHost: c.String("docker-host"),
 					Verbose:    c.GlobalBool("verbose"),
 				})
-				go nodeAgent.SyncMantle()
-				go nodeAgent.StreamOut()
-				select {}
+				nodeAgent.Run()
 			},
 		},
 		{
@@ -61,13 +59,13 @@ func main() {
 					Name:   "listen, l",
 					Value:  1234,
 					Usage:  "Port to listen on",
-					EnvVar: "MANTLE_PORT",
+					EnvVar: "STATSQUID_MANTLE_PORT",
 				},
 				cli.StringFlag{
 					Name:   "elastic-host",
 					Value:  "127.0.0.1",
 					Usage:  "Elasticsearch host",
-					EnvVar: "MANTLE_ES_HOST",
+					EnvVar: "STATSQUID_MANTLE_ES_HOST",
 				},
 			},
 			Action: func(c *cli.Context) {
