@@ -7,16 +7,14 @@ import (
 	"github.com/fatih/color"
 )
 
-func Output(s string, a ...interface{}) {
-	msg := fmt.Sprintf(s, a)
+func Output(msg string) {
 	bold := color.New(color.Bold).SprintFunc()
 	fmt.Printf("%s %s\n", bold("statsquid"), msg)
 }
 
-func OutputErr(s string, a ...interface{}) {
-	msg := fmt.Errorf(s, a)
+func OutputErr(e error) {
 	bold := color.New(color.Bold).SprintFunc()
-	fmt.Printf("%s %s\n", bold("statsquid"), msg)
+	fmt.Printf("%s %s\n", bold("statsquid"), e)
 }
 
 func FailOnError(err error) {

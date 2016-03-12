@@ -1,6 +1,7 @@
 package mantle
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/vektorlab/statsquid/models"
@@ -39,7 +40,7 @@ func (m *NerveMap) cleanupCollectors() {
 	for id, _ := range m.collectorMap {
 		if !m.containerExists(id) {
 			delete(m.collectorMap, id)
-			util.Output("removed stale collector toggle: %s", id)
+			util.Output(fmt.Sprintf("removed stale collector toggle: %s", id))
 		}
 	}
 	time.Sleep(30 * time.Second)
@@ -70,7 +71,7 @@ func (m *NerveMap) updateNodeContainers(report *models.ReportContainersMsg) {
 	//update our container map for given node
 	nodeID := report.Node.NodeID
 	if _, ok := m.nodeMap[nodeID]; ok == false {
-		util.Output("New node registered: %s", nodeID)
+		util.Output(fmt.Sprintf("New node registered: %s", nodeID))
 	}
 	m.nodeMap[nodeID] = report.Containers
 }
@@ -93,7 +94,7 @@ func (m *NerveMap) toggleAllCollectors(active bool) {
 		if m.collectorMap[id] != active {
 			m.collectorMap[id] = active
 			if m.verbose {
-				util.Output("collector toggled for %s", id)
+				util.Output(fmt.Sprintf("collector toggled for %s", id))
 			}
 		}
 	}
@@ -106,7 +107,7 @@ func (m *NerveMap) toggleCollector(containerID string) {
 	}
 	m.collectorMap[containerID] = (m.collectorMap[containerID] != true)
 	if m.verbose {
-		util.Output("collector toggled for %s on node %s", containerID, container.NodeName)
+		util.Output(fmt.Sprintf("collector toggled for %s on node %s", containerID, container.NodeName))
 	}
 }
 

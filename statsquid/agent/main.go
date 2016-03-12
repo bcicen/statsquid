@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/rpc"
 	"strconv"
 	"time"
@@ -155,15 +156,15 @@ func (agent *Agent) SyncMantle() {
 
 func (agent *Agent) report() {
 	diff := strconv.FormatFloat(time.Since(agent.agentStats.lastReport).Seconds(), 'f', 3, 64)
-	util.Output("%d active collectors", len(agent.collectors))
-	util.Output("%v", agent.agentStats.counter, "stats collected in last", diff, "seconds")
+	util.Output(fmt.Sprintf("%d active collectors", len(agent.collectors)))
+	util.Output(fmt.Sprintf("%d stats collected in last %s seconds", agent.agentStats.counter, diff))
 	agent.agentStats.counter = 0
 	agent.agentStats.lastReport = time.Now()
 }
 
 func (agent *Agent) newCollector(containerID string) *Collector {
 	if _, ok := agent.nodeContainers[containerID]; ok == false {
-		util.Output("collector start failed. unknown container id: %s", containerID)
+		util.Output(fmt.Sprintf("collector start failed. unknown container id: %s", containerID))
 		return nil
 	}
 
@@ -189,10 +190,10 @@ func (agent *Agent) newCollector(containerID string) *Collector {
 
 //collect stats for given container
 func (agent *Agent) collect(opts docker.StatsOptions) {
-	util.Output("starting collector for container: %s", opts.ID)
+	util.Output(fmt.Sprintf("starting collector for container: %s", opts.ID))
 	defer delete(agent.collectors, opts.ID)
 	agent.dockerClient.Stats(opts)
-	util.Output("stopping collector for container: %s", opts.ID)
+	util.Output(fmt.Sprintf("stopping collector for container: %s", opts.ID))
 }
 
 //wrap stat with container metadata

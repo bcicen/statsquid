@@ -30,14 +30,26 @@ func newWebSocketServer(verbose bool) *WebSocketServer {
 }
 
 func (w *WebSocketServer) handler(ws *websocket.Conn) {
-	if w.verbose {
-		fmt.Println("client connected to websocket: %s", ws.Request().RemoteAddr)
-	}
 	var msg string
+	var lastmsg string
+
+	defer ws.Close()
 	w.clients = append(w.clients, ws)
+	if w.verbose {
+		util.Output(fmt.Sprintf("client connected to websocket: %s", ws.Request().RemoteAddr))
+	}
+
 	for {
 		websocket.Message.Receive(ws, &msg)
-		fmt.Println(msg)
+		if msg == lastmsg {
+			//TODO: remove websocket connection object from WebSocketServer.clients
+			if w.verbose {
+				util.Output(fmt.Sprintf("websocket client disconnected: %s", ws.Request().RemoteAddr))
+			}
+			return
+		}
+		lastmsg = msg
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -70,7 +82,7 @@ func (a *GiantAxon) FlushToMantle(data []byte, reply *int) error {
 		a.statCounter += len(stats)
 		if time.Since(a.lastFlush).Seconds() > 10 {
 			diff := strconv.FormatFloat(time.Since(a.lastFlush).Seconds(), 'f', 3, 64)
-			util.Output("%v", a.statCounter, "stats collected in last", diff, "seconds")
+			util.Output(fmt.Sprintf("%d stats collected in last %s seconds", a.statCounter, diff))
 			a.statCounter = 0
 			a.lastFlush = time.Now()
 		}
@@ -121,6 +133,6 @@ func MantleServer(opts *MantleServerOpts) {
 	rpc.HandleHTTP()
 	http.Handle("/ws", websocket.Handler(axon.wsServer.handler))
 
-	util.Output("mantle server listening on :%d", opts.ListenPort)
+	util.Output(fmt.Sprintf("mantle server listening on :%d", opts.ListenPort))
 	http.ListenAndServe("0.0.0.0:"+strconv.Itoa(opts.ListenPort), nil)
 }
