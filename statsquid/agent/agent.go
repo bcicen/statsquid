@@ -198,7 +198,7 @@ func (agent *Agent) collect(opts docker.StatsOptions) {
 //wrap stat with container metadata
 func (agent *Agent) streamHandler(container *models.Container, stats chan *docker.Stats) {
 	for stat := range stats {
-		agent.statQ.add(&models.StatSquidStat{container, stat})
+		agent.statQ.add(&models.StatSquidStat{container, stat, &models.ProcessedStats{}})
 		if agent.verbose {
 			agent.agentStats.counter++
 		}

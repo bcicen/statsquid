@@ -1,7 +1,8 @@
 package mantle
 
 import (
-	"net"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/rpc"
 	"strconv"
@@ -9,12 +10,49 @@ import (
 
 	"github.com/vektorlab/statsquid/models"
 	"github.com/vektorlab/statsquid/util"
+	"golang.org/x/net/websocket"
 )
+
+type WebSocketServer struct {
+	clients []*websocket.Conn
+	stream  chan []byte
+	verbose bool
+}
+
+func newWebSocketServer(verbose bool) *WebSocketServer {
+	w := &WebSocketServer{
+		clients: make([]*websocket.Conn, 0),
+		stream:  make(chan []byte),
+		verbose: verbose,
+	}
+	go w.clientStream()
+	return w
+}
+
+func (w *WebSocketServer) handler(ws *websocket.Conn) {
+	if w.verbose {
+		fmt.Println("client connected to websocket: %s", ws.Request().RemoteAddr)
+	}
+	var msg string
+	w.clients = append(w.clients, ws)
+	for {
+		websocket.Message.Receive(ws, &msg)
+		fmt.Println(msg)
+	}
+}
+
+func (w *WebSocketServer) clientStream() {
+	for s := range w.stream {
+		for _, c := range w.clients {
+			websocket.Message.Send(c, s)
+		}
+	}
+}
 
 //Agent communication object
 type GiantAxon struct {
 	nerveMap    *NerveMap
-	statStream  chan *models.StatSquidStat
+	wsServer    *WebSocketServer
 	verbose     bool
 	lastFlush   time.Time
 	statCounter int
@@ -22,15 +60,20 @@ type GiantAxon struct {
 
 func (a *GiantAxon) FlushToMantle(data []byte, reply *int) error {
 	stats := models.UnpackStats(data)
-	a.statCounter += len(stats)
 	for _, stat := range stats {
-		a.statStream <- stat
+		a.nerveMap.updateStat(stat)
+		j, err := json.Marshal(stat)
+		util.FailOnError(err)
+		a.wsServer.stream <- j
 	}
-	if time.Since(a.lastFlush).Seconds() > 10 {
-		diff := strconv.FormatFloat(time.Since(a.lastFlush).Seconds(), 'f', 3, 64)
-		util.Output("%v", a.statCounter, "stats collected in last", diff, "seconds")
-		a.statCounter = 0
-		a.lastFlush = time.Now()
+	if a.verbose {
+		a.statCounter += len(stats)
+		if time.Since(a.lastFlush).Seconds() > 10 {
+			diff := strconv.FormatFloat(time.Since(a.lastFlush).Seconds(), 'f', 3, 64)
+			util.Output("%v", a.statCounter, "stats collected in last", diff, "seconds")
+			a.statCounter = 0
+			a.lastFlush = time.Now()
+		}
 	}
 	*reply = 1
 	return nil
@@ -62,30 +105,22 @@ func (a *GiantAxon) GetCollectors(nodeID string, reply *map[string]bool) error {
 }
 
 type MantleServerOpts struct {
-	ListenPort  int
-	ElasticHost string
-	ElasticPort int
-	Verbose     bool
+	ListenPort int
+	Verbose    bool
 }
 
 func MantleServer(opts *MantleServerOpts) {
-	statStream := make(chan *models.StatSquidStat)
 	axon := &GiantAxon{
-		nerveMap:   newNerveMap(opts.Verbose),
-		statStream: statStream,
-		verbose:    opts.Verbose,
-		lastFlush:  time.Now(),
+		nerveMap:  newNerveMap(opts.Verbose),
+		wsServer:  newWebSocketServer(opts.Verbose),
+		verbose:   opts.Verbose,
+		lastFlush: time.Now(),
 	}
 	//init RPC server
 	rpc.Register(axon)
 	rpc.HandleHTTP()
-	listen, err := net.Listen("tcp", ":"+strconv.Itoa(opts.ListenPort))
-	util.FailOnError(err)
+	http.Handle("/ws", websocket.Handler(axon.wsServer.handler))
 
 	util.Output("mantle server listening on :%d", opts.ListenPort)
-	go http.Serve(listen, nil)
-
-	util.Output("starting indexer")
-	siphon := newSiphon(opts.ElasticHost)
-	siphon.worker(statStream)
+	http.ListenAndServe("0.0.0.0:"+strconv.Itoa(opts.ListenPort), nil)
 }

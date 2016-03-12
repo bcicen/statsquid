@@ -9,8 +9,9 @@ import (
 
 //NerveMap holds the global state for all reporting agents
 type NerveMap struct {
-	nodeMap      map[string]models.ContainerMap //mapping of node id to list of containers
-	collectorMap map[string]bool                //mapping of active collectors
+	nodeMap      map[string]models.ContainerMap   //mapping of node id to list of containers
+	collectorMap map[string]bool                  //mapping of active collectors
+	statMap      map[string]*models.StatSquidStat //mapping of container id to most recent stat
 	verbose      bool
 }
 
@@ -18,23 +19,19 @@ func newNerveMap(verbose bool) *NerveMap {
 	n := &NerveMap{
 		nodeMap:      make(map[string]models.ContainerMap),
 		collectorMap: make(map[string]bool),
+		statMap:      make(map[string]*models.StatSquidStat),
 		verbose:      verbose,
 	}
 	go n.cleanupCollectors()
-	//	go func() {
-	//		for {
-	//						for node, cmap := range n.nodeMap {
-	//							fmt.Println(node)
-	//							fmt.Println(cmap)
-	//						}
-	//			for k, v := range n.collectorMap {
-	//				fmt.Printf("%s: %b\n", k, v)
-	//			}
-	//			time.Sleep(5 * time.Second)
-	//		}
-	//	}()
-
 	return n
+}
+
+func (m *NerveMap) updateStat(stat *models.StatSquidStat) {
+	cid := stat.ID
+	if _, ok := m.statMap[cid]; ok == true {
+		models.CalculateCPU(m.statMap[cid], stat)
+	}
+	m.statMap[cid] = stat
 }
 
 //regulary remove IDs in the collector map not matching any known containers

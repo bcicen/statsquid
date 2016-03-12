@@ -61,19 +61,11 @@ func main() {
 					Usage:  "Port to listen on",
 					EnvVar: "STATSQUID_MANTLE_PORT",
 				},
-				cli.StringFlag{
-					Name:   "elastic-host",
-					Value:  "127.0.0.1",
-					Usage:  "Elasticsearch host",
-					EnvVar: "STATSQUID_MANTLE_ES_HOST",
-				},
 			},
 			Action: func(c *cli.Context) {
 				opts := &mantle.MantleServerOpts{
-					ListenPort:  c.Int("listen"),
-					ElasticHost: c.String("elastic-host"),
-					ElasticPort: 9300,
-					Verbose:     c.GlobalBool("verbose"),
+					ListenPort: c.Int("listen"),
+					Verbose:    c.GlobalBool("verbose"),
 				}
 				mantle.MantleServer(opts)
 			},
