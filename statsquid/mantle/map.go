@@ -31,6 +31,8 @@ func (m *NerveMap) updateStat(stat *models.StatSquidStat) {
 	cid := stat.ID
 	if _, ok := m.statMap[cid]; ok == true {
 		models.CalculateCPU(m.statMap[cid], stat)
+		models.CalculateNet(stat)
+		models.CalculateBlkIO(stat)
 	}
 	m.statMap[cid] = stat
 }

@@ -19,10 +19,34 @@ type StatSquidStat struct {
 }
 
 type ProcessedStats struct {
-	CPUPercentage float64
+	CPUPercentage     float64
+	RxBytesTotal      uint64
+	TxBytesTotal      uint64
+	IoReadBytesTotal  uint64
+	IoWriteBytesTotal uint64
 }
 
 func NewStatSquidStat(container *Container, stat *docker.Stats) {
+}
+
+//Calculate total block IO r/w
+func CalculateBlkIO(stat *StatSquidStat) {
+	for _, v := range stat.BlkioStats.IOServiceBytesRecursive {
+		if v.Op == "Read" {
+			stat.IoReadBytesTotal += v.Value
+		}
+		if v.Op == "Write" {
+			stat.IoWriteBytesTotal += v.Value
+		}
+	}
+}
+
+//Calculate total Net TX/RX
+func CalculateNet(stat *StatSquidStat) {
+	for _, v := range stat.Networks {
+		stat.RxBytesTotal += v.RxBytes
+		stat.TxBytesTotal += v.TxBytes
+	}
 }
 
 //Calculate time-base CPU utilization from two stats
