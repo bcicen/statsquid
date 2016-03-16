@@ -1,7 +1,6 @@
 package mantle
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/rpc"
@@ -15,18 +14,14 @@ import (
 
 type WebSocketServer struct {
 	clients []*websocket.Conn
-	stream  chan []byte
 	verbose bool
 }
 
 func newWebSocketServer(verbose bool) *WebSocketServer {
-	w := &WebSocketServer{
+	return &WebSocketServer{
 		clients: make([]*websocket.Conn, 0),
-		stream:  make(chan []byte),
 		verbose: verbose,
 	}
-	go w.clientStream()
-	return w
 }
 
 func (w *WebSocketServer) handler(ws *websocket.Conn) {
@@ -53,14 +48,6 @@ func (w *WebSocketServer) handler(ws *websocket.Conn) {
 	}
 }
 
-func (w *WebSocketServer) clientStream() {
-	for s := range w.stream {
-		for _, c := range w.clients {
-			websocket.Message.Send(c, s)
-		}
-	}
-}
-
 //Agent communication object
 type GiantAxon struct {
 	nerveMap    *NerveMap
@@ -70,17 +57,26 @@ type GiantAxon struct {
 	statCounter int
 }
 
+//Broadcast the current statmap to all connected clients
+func (a *GiantAxon) wsStream() {
+	for {
+		msg := a.nerveMap.statMapToJSON()
+		for _, c := range a.wsServer.clients {
+			websocket.Message.Send(c, msg)
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
+//RPC method to submit a slice of stats to mantle
 func (a *GiantAxon) FlushToMantle(data []byte, reply *int) error {
 	stats := models.UnpackStats(data)
 	for _, stat := range stats {
 		a.nerveMap.updateStat(stat)
-		j, err := json.Marshal(stat)
-		util.FailOnError(err)
-		a.wsServer.stream <- j
 	}
 	if a.verbose {
 		a.statCounter += len(stats)
-		if time.Since(a.lastFlush).Seconds() > 10 {
+		if time.Since(a.lastFlush).Seconds() > 60 {
 			diff := strconv.FormatFloat(time.Since(a.lastFlush).Seconds(), 'f', 3, 64)
 			util.Output(fmt.Sprintf("%d stats collected in last %s seconds", a.statCounter, diff))
 			a.statCounter = 0
@@ -131,7 +127,10 @@ func MantleServer(opts *MantleServerOpts) {
 	//init RPC server
 	rpc.Register(axon)
 	rpc.HandleHTTP()
+
+	//init WebSocket server
 	http.Handle("/ws", websocket.Handler(axon.wsServer.handler))
+	go axon.wsStream()
 
 	util.Output(fmt.Sprintf("mantle server listening on :%d", opts.ListenPort))
 	http.ListenAndServe("0.0.0.0:"+strconv.Itoa(opts.ListenPort), nil)

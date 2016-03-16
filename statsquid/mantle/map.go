@@ -1,7 +1,9 @@
 package mantle
 
 import (
+	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/vektorlab/statsquid/models"
@@ -13,6 +15,7 @@ type NerveMap struct {
 	nodeMap      map[string]models.ContainerMap   //mapping of node id to list of containers
 	collectorMap map[string]bool                  //mapping of active collectors
 	statMap      map[string]*models.StatSquidStat //mapping of container id to most recent stat
+	lock         sync.RWMutex
 	verbose      bool
 }
 
@@ -21,10 +24,17 @@ func newNerveMap(verbose bool) *NerveMap {
 		nodeMap:      make(map[string]models.ContainerMap),
 		collectorMap: make(map[string]bool),
 		statMap:      make(map[string]*models.StatSquidStat),
+		lock:         sync.RWMutex{},
 		verbose:      verbose,
 	}
 	go n.cleanupCollectors()
 	return n
+}
+
+func (m *NerveMap) statMapToJSON() []byte {
+	j, err := json.Marshal(m.statMap)
+	util.FailOnError(err)
+	return j
 }
 
 func (m *NerveMap) updateStat(stat *models.StatSquidStat) {
@@ -37,16 +47,20 @@ func (m *NerveMap) updateStat(stat *models.StatSquidStat) {
 	m.statMap[cid] = stat
 }
 
-//regulary remove IDs in the collector map not matching any known containers
+//regulary remove IDs not matching any registered containers
 func (m *NerveMap) cleanupCollectors() {
-	for id, _ := range m.collectorMap {
-		if !m.containerExists(id) {
-			delete(m.collectorMap, id)
-			util.Output(fmt.Sprintf("removed stale collector toggle: %s", id))
+	for {
+		m.lock.Lock()
+		for id := range m.collectorMap {
+			if !m.containerExists(id) {
+				delete(m.collectorMap, id)
+				delete(m.statMap, id)
+				util.Output(fmt.Sprintf("removed stale collector toggle: %s", id))
+			}
 		}
+		m.lock.Unlock()
+		time.Sleep(30 * time.Second)
 	}
-	time.Sleep(30 * time.Second)
-	m.cleanupCollectors()
 }
 
 func (m *NerveMap) containerExists(id string) bool {
@@ -64,8 +78,9 @@ func (m *NerveMap) collectorExists(id string) bool {
 }
 
 func (m *NerveMap) updateNodeContainers(report *models.ReportContainersMsg) {
+	m.lock.Lock()
 	//create a collector toggle for new containers
-	for id, _ := range report.Containers {
+	for id := range report.Containers {
 		if !m.collectorExists(id) {
 			m.collectorMap[id] = false
 		}
@@ -76,9 +91,10 @@ func (m *NerveMap) updateNodeContainers(report *models.ReportContainersMsg) {
 		util.Output(fmt.Sprintf("New node registered: %s", nodeID))
 	}
 	m.nodeMap[nodeID] = report.Containers
+	m.lock.Unlock()
 }
 
-func (m *NerveMap) getContainerById(id string) *models.Container {
+func (m *NerveMap) getContainerByID(id string) *models.Container {
 	for _, cmap := range m.nodeMap {
 		if _, ok := cmap[id]; ok == true {
 			return cmap[id]
@@ -92,7 +108,7 @@ func (m *NerveMap) getContainersByNode(nodeID string) models.ContainerMap {
 }
 
 func (m *NerveMap) toggleAllCollectors(active bool) {
-	for id, _ := range m.collectorMap {
+	for id := range m.collectorMap {
 		if m.collectorMap[id] != active {
 			m.collectorMap[id] = active
 			if m.verbose {
@@ -103,7 +119,7 @@ func (m *NerveMap) toggleAllCollectors(active bool) {
 }
 
 func (m *NerveMap) toggleCollector(containerID string) {
-	container := m.getContainerById(containerID)
+	container := m.getContainerByID(containerID)
 	if container == nil {
 		return
 	}
@@ -115,7 +131,7 @@ func (m *NerveMap) toggleCollector(containerID string) {
 
 func (m *NerveMap) getCollectorsByNode(nodeID string) map[string]bool {
 	collectors := make(map[string]bool)
-	for id, _ := range m.getContainersByNode(nodeID) {
+	for id := range m.getContainersByNode(nodeID) {
 		collectors[id] = m.collectorMap[id]
 	}
 	return collectors

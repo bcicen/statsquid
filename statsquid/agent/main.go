@@ -147,7 +147,7 @@ func (agent *Agent) SyncMantle() {
 		agent.ReportContainers()
 	}
 	agent.SyncCollectors()
-	if agent.verbose && time.Since(agent.agentStats.lastReport).Seconds() > 10 {
+	if agent.verbose && time.Since(agent.agentStats.lastReport).Seconds() > 60 {
 		agent.report()
 	}
 	time.Sleep(1 * time.Second)
