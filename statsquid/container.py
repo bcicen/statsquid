@@ -38,10 +38,11 @@ class Container(object):
             self.current['cpu'] = self._calculate_cpu(stat,last_stat)
 
         self.current['mem'] = float(stat.memory_stats.usage)
-        self.current['net_tx_bytes_total'] = float(stat.network.tx_bytes)
-        self.current['net_rx_bytes_total'] = float(stat.network.rx_bytes)
+        tx_bytes, rx_bytes = self._get_aggr_net(stat)
+        self.current['net_tx_bytes_total'] = tx_bytes
+        self.current['net_rx_bytes_total'] = rx_bytes
 
-        read_io,write_io = self._get_rw_io(stat)
+        read_io, write_io = self._get_rw_io(stat)
         self.current['io_read_bytes_total'] = read_io
         self.current['io_write_bytes_total'] = write_io
 
@@ -57,7 +58,14 @@ class Container(object):
     def delete(self):
         self.redis.delete(self.key)
 
-    def _get_rw_io(self,stat):
+    def _get_aggr_net(self, stat):
+        tx, rx = float(), float()
+        for iface, net in stat.networks.items():
+            tx += net['tx_bytes']
+            rx += net['rx_bytes']
+        return tx, rx
+
+    def _get_rw_io(self, stat):
         r,w = 0,0
         for s in stat.blkio_stats.io_service_bytes_recursive:
             if s['op'] == 'Read':

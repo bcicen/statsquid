@@ -7,7 +7,11 @@ class AttrDict(dict):
     __setattr__ = dict.__setitem__
 
     def __getattr__(self, k):
-        v = self.__getitem__(k)
+        try:
+            v = self.__getitem__(k)
+        except KeyError:
+            return 0
+
         return v if not isinstance(v, dict) else AttrDict(v)
 
     def __str__(self):
