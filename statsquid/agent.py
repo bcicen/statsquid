@@ -23,7 +23,7 @@ class Agent(object):
      - redis_port(int): port to connect to redis host on. default 6379
     """
     def __init__(self,docker_host,redis_host='127.0.0.1',redis_port=6379):
-        self.docker     = Client(base_url=docker_host)
+        self.docker     = Client(base_url=docker_host, version='auto')
         self.source     = self.docker.info()['Name']
         self.ncpu       = self.docker.info()['NCPU']
         self.redis      = StrictRedis(host=redis_host,port=redis_port,db=0)
