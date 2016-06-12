@@ -1,8 +1,7 @@
-FROM alpine:3.2
+FROM alpine:latest
 
-RUN apk add --update python ca-certificates wget && \
-    wget "https://bootstrap.pypa.io/get-pip.py" -O - | python && \
-    rm /var/cache/apk/*
+RUN apk add --no-cache python ca-certificates wget && \
+    wget "https://bootstrap.pypa.io/get-pip.py" -O - | python
 
 COPY requirements.txt /
 RUN pip install -r requirements.txt
